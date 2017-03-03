@@ -22,9 +22,9 @@ class CommandProcessor(graphManager: ActorRef) extends Actor{ //New Command Proc
   def parseJSON(command:String):Unit={
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
-
-    if(commandKey.contains("addVertex")) vertexAdd(parsedOBJ.getFields("addVertex").head.asJsObject) //if addVertex, parse to handling function
-
+    if(commandKey.contains("VertexAdd")) {
+      vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject) //if addVertex, parse to handling function
+    }
   }
 
   def vertexAdd(command:JsObject):Unit = {

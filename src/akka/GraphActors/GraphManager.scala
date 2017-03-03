@@ -17,9 +17,8 @@ case class InitilizeGraph(children:Int) //class for starting the manager, passes
 
 case class VertexAdd(srcId:Int) //add a vertex (or add/update a property to an existing vertex)
 case class VertexAddWithProperties(srcId:Int, properties: Map[String,String])
-case class VertexAddProperty(srcId:Int,propery:Tuple2[String,String])
+case class VertexUpdateProperties(srcId:Int, propery:Tuple2[String,String])
 case class VertexRemove()
-case class VertexUpdate()
 
 case class EdgeAdd(srcId:Int,destID:Int,property:Tuple2[String,String])
 case class EdgeRemove()
@@ -34,7 +33,7 @@ class GraphManager extends Actor{
     case InitilizeGraph(children) => initilizeGraph(children)
     case VertexAdd(srcId) => childMap(chooseChild(srcId)) ! VertexAdd(srcId) //select handling partition and forward VertexAdd command
     case VertexAddWithProperties(srcId,properties) => childMap(chooseChild(srcId)) ! VertexAddWithProperties(srcId,properties)
-    case VertexAddProperty(srcId,propery) => childMap(chooseChild(srcId)) ! VertexAddProperty(srcId,propery)
+    case VertexUpdateProperties(srcId,propery) => childMap(chooseChild(srcId)) ! VertexUpdateProperties(srcId,propery)
     case _ => println("message not recognized!")
   }
 

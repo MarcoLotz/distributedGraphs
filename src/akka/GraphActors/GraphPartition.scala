@@ -8,9 +8,6 @@ import akka.actor.Actor
   * Is sent commands which have been processed by the command Processor
   * Will process these, storing information in graph entities which may be updated if they already exist
   *
-  * TODO: for updates/removals the Partition should message other effected partitions which can then
-  * update their information
-  *
   * */
 
 class GraphPartition(id:Int) extends Actor {
@@ -20,7 +17,7 @@ class GraphPartition(id:Int) extends Actor {
   override def receive: Receive = {
     case VertexAdd(srcId) => vertexAdd(srcId) // If an add vertex command comes in, pass to handler function
     case VertexAddWithProperties(srcId,properties) => vertexAddWithProperties(srcId,properties)
-    case VertexAddProperty(srcId,propery) => vertexAddProperty(srcId,propery)
+    case VertexUpdateProperties(srcId,propery) => vertexUpdateProperties(srcId,propery)
   }
 
   def vertexAdd(srcId:Int): Unit ={ //Vertex add handler function
@@ -32,10 +29,10 @@ class GraphPartition(id:Int) extends Actor {
 
   def vertexAddWithProperties(srcId:Int, properties:Map[String,String]):Unit ={
       vertexAdd(srcId)
-      properties.foreach(l => vertexAddProperty(srcId,(l._1,l._2)))
+      properties.foreach(l => vertexUpdateProperties(srcId,(l._1,l._2)))
   }
 
-  def vertexAddProperty(srcId:Int, property:Tuple2[String,String]):Unit ={
+  def vertexUpdateProperties(srcId:Int, property:Tuple2[String,String]):Unit ={
     if(!(vertices contains srcId)){ // if the vertex doesn't already exist
       vertices = vertices updated(srcId,new Vertex(srcId)) //create it and add it to the vertex map
     }
