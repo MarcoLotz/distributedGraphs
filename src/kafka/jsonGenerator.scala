@@ -22,9 +22,11 @@ object jsonGenerator extends App{
   val config:ProducerConfig = new ProducerConfig(props)
   val producer = new Producer[String,String](config)
 
-  val data = new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genAddVertex())
-  producer.send(data)
-  producer.close
+  println(genAddVertex())
+
+  //val data = new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genAddVertex())
+  //producer.send(data)
+  //producer.close
 
   def genAddVertex():String={
 

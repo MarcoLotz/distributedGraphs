@@ -29,13 +29,18 @@ class CommandProcessor(graphManager: ActorRef) extends Actor{ //New Command Proc
 
   def vertexAdd(command:JsObject):Unit = {
     val srcID = command.fields("srcID").toString().toInt //extract the srcID
-    graphManager ! VertexAdd(srcID)
-    if(command.fields.contains("properties")){
-      command.fields("properties").asJsObject.fields.foreach( pair => {
-        graphManager ! VertexAddProperty(srcID,(pair._1,pair._2.toString()))
+    if(command.fields.contains("properties")){ //if there are properties within the command
+      var properties = Map[String,String]() //create a vertex map
+      command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
+        properties = properties updated (pair._1,pair._2.toString())
       })
+      graphManager ! VertexAddWithProperties(srcID,properties) //send the srcID and properties to the graph manager
     }
+    else graphManager ! VertexAdd(srcID) //if there are not any properties, just send the srcID
   }
+
+  //graphManager ! VertexAddProperty(srcID,(pair._1,pair._2.toString()))
+
 
   def edgeAdd(split:Array[String]):Unit = {
     graphManager ! EdgeAdd(split(1).toInt,split(2).toInt,(split(3),split(4)))

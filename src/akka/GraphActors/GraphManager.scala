@@ -16,6 +16,7 @@ import com.oracle.webservices.internal.api.message.PropertySet.Property
 case class InitilizeGraph(children:Int) //class for starting the manager, passes the initial number of partitions
 
 case class VertexAdd(srcId:Int) //add a vertex (or add/update a property to an existing vertex)
+case class VertexAddWithProperties(srcId:Int, properties: Map[String,String])
 case class VertexAddProperty(srcId:Int,propery:Tuple2[String,String])
 case class VertexRemove()
 case class VertexUpdate()
@@ -32,12 +33,10 @@ class GraphManager extends Actor{
   override def receive: Receive = {
     case InitilizeGraph(children) => initilizeGraph(children)
     case VertexAdd(srcId) => childMap(chooseChild(srcId)) ! VertexAdd(srcId) //select handling partition and forward VertexAdd command
+    case VertexAddWithProperties(srcId,properties) => childMap(chooseChild(srcId)) ! VertexAddWithProperties(srcId,properties)
     case VertexAddProperty(srcId,propery) => childMap(chooseChild(srcId)) ! VertexAddProperty(srcId,propery)
     case _ => println("message not recognized!")
   }
-
-
-
 
 
   def initilizeGraph(children:Int):Unit = {

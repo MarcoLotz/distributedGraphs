@@ -19,6 +19,7 @@ class GraphPartition(id:Int) extends Actor {
 
   override def receive: Receive = {
     case VertexAdd(srcId) => vertexAdd(srcId) // If an add vertex command comes in, pass to handler function
+    case VertexAddWithProperties(srcId,properties) => vertexAddWithProperties(srcId,properties)
     case VertexAddProperty(srcId,propery) => vertexAddProperty(srcId,propery)
   }
 
@@ -27,6 +28,11 @@ class GraphPartition(id:Int) extends Actor {
     if(!(vertices contains srcId)){ // if the vertex doesn't already exist
       vertices = vertices updated(srcId,new Vertex(srcId)) //create it and add it to the vertex map
     }
+  }
+
+  def vertexAddWithProperties(srcId:Int, properties:Map[String,String]):Unit ={
+      vertexAdd(srcId)
+      properties.foreach(l => vertexAddProperty(srcId,(l._1,l._2)))
   }
 
   def vertexAddProperty(srcId:Int, property:Tuple2[String,String]):Unit ={
