@@ -14,15 +14,17 @@ import com.oracle.webservices.internal.api.message.PropertySet.Property
 //The following block are all case classes (commands) which the manager can handle
 
 case class InitilizeGraph(children:Int) //class for starting the manager, passes the initial number of partitions
+case class PassPartitionList(partitionList:Map[Int,ActorRef])
 
 case class VertexAdd(srcId:Int) //add a vertex (or add/update a property to an existing vertex)
 case class VertexAddWithProperties(srcId:Int, properties: Map[String,String])
-case class VertexUpdateProperties(srcId:Int, propery:Tuple2[String,String])
-case class VertexRemove()
+case class VertexUpdateProperties(srcId:Int, propery:Map[String,String])
 
-case class EdgeAdd(srcId:Int,destID:Int,property:Tuple2[String,String])
-case class EdgeRemove()
-case class EdgeUpdate()
+case class EdgeAdd(srcId:Int,destId:Int)
+case class EdgeAddWithProperties(srcId:Int,dstId:Int, properties: Map[String,String])
+case class RemoteEdgeAdd(srcId:Int,dstId:Int)
+case class RemoteEdgeAddWithProperties(srcId:Int,dstId:Int,properties: Map[String,String])
+
 
 class GraphManager extends Actor{
   var running = false // bool to check if graph has already been initialized
@@ -31,9 +33,14 @@ class GraphManager extends Actor{
 
   override def receive: Receive = {
     case InitilizeGraph(children) => initilizeGraph(children)
+
     case VertexAdd(srcId) => childMap(chooseChild(srcId)) ! VertexAdd(srcId) //select handling partition and forward VertexAdd command
     case VertexAddWithProperties(srcId,properties) => childMap(chooseChild(srcId)) ! VertexAddWithProperties(srcId,properties)
     case VertexUpdateProperties(srcId,propery) => childMap(chooseChild(srcId)) ! VertexUpdateProperties(srcId,propery)
+
+    case EdgeAdd(srcId,destID) => childMap(chooseChild(srcId)) ! EdgeAdd(srcId,destID)
+    case EdgeAddWithProperties(srcId,dstID,properties) => childMap(chooseChild(srcId))
+
     case _ => println("message not recognized!")
   }
 
@@ -48,6 +55,7 @@ class GraphManager extends Actor{
         val child =  context.actorOf(Props(new GraphPartition(i))) //create graph partitions
         childMap = childMap updated (i,child) //and add to partition map
       }
+      childMap.foreach(child => child._2 ! PassPartitionList(childMap))
     }
   }
 
