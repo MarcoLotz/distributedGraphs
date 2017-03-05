@@ -20,6 +20,7 @@ class CommandProcessor(graphManager: ActorRef) extends Actor{ //New Command Proc
   }
 
   def parseJSON(command:String):Unit={
+    println(command)
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
     if(commandKey.contains("VertexAdd")) {

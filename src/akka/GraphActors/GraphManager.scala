@@ -39,7 +39,7 @@ class GraphManager extends Actor{
     case VertexUpdateProperties(srcId,propery) => childMap(chooseChild(srcId)) ! VertexUpdateProperties(srcId,propery)
 
     case EdgeAdd(srcId,destID) => childMap(chooseChild(srcId)) ! EdgeAdd(srcId,destID)
-    case EdgeAddWithProperties(srcId,dstID,properties) => childMap(chooseChild(srcId))
+    case EdgeAddWithProperties(srcId,dstID,properties) => childMap(chooseChild(srcId)) ! EdgeAddWithProperties(srcId,dstID,properties)
 
     case _ => println("message not recognized!")
   }

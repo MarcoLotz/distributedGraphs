@@ -30,22 +30,30 @@ class GraphPartition(id:Int) extends Actor {
     case EdgeAdd(srcId,destID) => edgeAdd(srcId,destID)
     case RemoteEdgeAdd(srcId,dstId) => remoteEdgeAdd(srcId,dstId)
 
+    case EdgeAddWithProperties(srcId,dstId,properties) => edgeAddWithProperties(srcId,dstId,properties)
+    case RemoteEdgeAddWithProperties(srcId,dstId,properties) => remoteEdgeAddWithProperties(srcId,dstId,properties)
+
   }
 
   //*******************EDGE BLOCK
 
   def edgeAdd(srcId:Int,dstId:Int):Unit={
-    if(checkDst(dstId)) { //check if both vertices are local
-      println(s"Fully local edge in $childID")
-      if(!(vertices.contains(srcId))) vertexAdd(srcId) //check if src and dst both exist as vertices
-      if(!(vertices.contains(dstId))) vertexAdd(dstId)
-      edges = edges updated((srcId,dstId),new Edge(srcId,dstId)) // add local edge
-    }
+    if(checkDst(dstId)) localEdge(srcId,dstId) //if dst is also stored in this partition
     else { //if dst is sotred in another partition
-      println(s"Shared edge in $childID")
-      if(!(vertices.contains(srcId))) vertexAdd(srcId) //check if src exists as a vertex
-      edges = edges updated((srcId,dstId),new Edge(srcId,dstId)) // add local edge
+      remoteEdge(srcId, dstId)
       partitionList(getDstPartition(dstId)) ! RemoteEdgeAdd(srcId,dstId)
+    }
+  }
+
+  def edgeAddWithProperties(srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
+    if(checkDst(dstId)) { //check if both vertices are local
+      localEdge(srcId,dstId)
+      properties.foreach(prop => edges((srcId,dstId)) + (prop._1,prop._2)) // add all passed properties onto the list
+    }
+    else {
+      remoteEdge(srcId,dstId)
+      properties.foreach(prop => edges((srcId,dstId)) + (prop._1,prop._2)) // add all passed properties onto the list
+      partitionList(getDstPartition(dstId)) ! RemoteEdgeAddWithProperties(srcId,dstId,properties)
     }
   }
 
@@ -55,11 +63,34 @@ class GraphPartition(id:Int) extends Actor {
     edges = edges updated((srcId,dstId),new Edge(srcId,dstId)) // add local edge
   }
 
+  def remoteEdgeAddWithProperties(srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
+    println(s"received shared edge in $childID")
+    if(!(vertices.contains(dstId))) vertexAdd(dstId) //check if dst exists as a vertex
+    edges = edges updated((srcId,dstId),new Edge(srcId,dstId)) // add local edge
+    properties.foreach(prop => edges((srcId,dstId)) + (prop._1,prop._2)) // add all passed properties onto the list
+  }
+
+
+  //************ EDGE HELPERS
+
   def checkDst(dstID:Int):Boolean = if(dstID%partitionList.size==childID) true else false
   def getDstPartition(dstID:Int):Int = dstID%partitionList.size
 
+  def localEdge(srcId:Int,dstId:Int):Unit={
+    println(s"Fully local edge in $childID")
+    if(!(vertices.contains(srcId))) vertexAdd(srcId) //check if src and dst both exist as vertices
+    if(!(vertices.contains(dstId))) vertexAdd(dstId)
+    edges = edges updated((srcId,dstId),new Edge(srcId,dstId)) // add local edge
+  }
 
+  def remoteEdge(srcId:Int,dstId:Int):Unit={
+    println(s"Shared edge in $childID")
+    if(!(vertices.contains(srcId))) vertexAdd(srcId) //check if src exists as a vertex
+    edges = edges updated((srcId,dstId),new Edge(srcId,dstId)) // add local edge
 
+  }
+
+  //************ END EDGE HELPERS
 
 
 

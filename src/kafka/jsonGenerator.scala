@@ -47,8 +47,8 @@ object jsonGenerator extends App{
     val srcID = genSrcID()
     val dstID = genDstID()
     val properties =  genProperties(2,true)
-    s""" {"EdgeAdd":{$srcID, $dstID}}"""
-    //s""" {"EdgeAdd":{$srcID, $dstID, $properties}}"""
+    //s""" {"EdgeAdd":{$srcID, $dstID}}"""
+    s""" {"EdgeAdd":{$srcID, $dstID, $properties}}"""
   }
 
 
