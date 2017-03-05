@@ -7,9 +7,5 @@ class Edge(src: Int, dst:Int) extends Entity{
   val srcID = src
   val dstID = dst
 
-  override def printProperties(): Unit = {
-    println(s"Edge between $srcID and $dstID: with properties:")
-    super.printProperties()
-  }
-
+  override def printProperties(): String = s"Edge between $srcID and $dstID: with properties: \n"+ super.printProperties()
 }

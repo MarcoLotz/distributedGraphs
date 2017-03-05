@@ -7,9 +7,6 @@ package akka.GraphEntities
 class Vertex(id:Int) extends Entity{
   val vertexId:Long = id
 
-  override def printProperties(): Unit = {
-    println(s"Vertex $vertexId with properties:")
-    super.printProperties()
-  }
+  override def printProperties():String = s"Vertex $vertexId with properties: \n"+super.printProperties()
 
 }

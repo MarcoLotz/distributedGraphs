@@ -1,7 +1,7 @@
 package akka.GraphActors
 
 import akka.actor.{Actor, ActorRef, Props}
-import com.oracle.webservices.internal.api.message.PropertySet.Property
+import sys.process._
 
 
 /**
@@ -56,11 +56,15 @@ class GraphManager extends Actor{
         childMap = childMap updated (i,child) //and add to partition map
       }
       childMap.foreach(child => child._2 ! PassPartitionList(childMap))
+      resetLogs() //reset partition logs for testing
     }
   }
 
-  def chooseChild(srcId:Int):Int = { //simple srcID hash at the moment
-    srcId % children
+  def chooseChild(srcId:Int):Int = srcId % children //simple srcID hash at the moment
+
+  def resetLogs():Unit = {
+    "rm -r partitionLogs".!
+    "mkdir partitionLogs".!
   }
 
 }
