@@ -13,6 +13,8 @@ import scala.util.Random
   */
 object jsonGenerator extends App{
 
+  var messageID:Int = 0
+
   val props:Properties = new Properties()
   props.put("metadata.broker.list", "localhost:9092")
   props.put("serializer.class", "kafka.serializer.StringEncoder")
@@ -22,10 +24,7 @@ object jsonGenerator extends App{
   val config:ProducerConfig = new ProducerConfig(props)
   val producer = new Producer[String,String](config)
 
-  //println(genEdgeAdd())
-
-  val data = new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeAdd())
-  producer.send(data)
+  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeUpdateProperties()))
   producer.close
 
   def genVertexAdd():String={
@@ -44,18 +43,27 @@ object jsonGenerator extends App{
   }
 
   def genEdgeAdd():String={
-    val srcID = genSrcID()
-    val dstID = genDstID()
-    val properties =  genProperties(2,true)
+    val srcID = genSetSrcID()
+    val dstID = genSetDstID()
+    val properties =  genProperties(2,false)
     //s""" {"EdgeAdd":{$srcID, $dstID}}"""
     s""" {"EdgeAdd":{$srcID, $dstID, $properties}}"""
   }
 
+  def genEdgeUpdateProperties():String={
+    val srcID = genSetSrcID()
+    val dstID = genSetDstID()
+    val properties =  genProperties(2,false)
+    //s""" {"EdgeAdd":{$srcID, $dstID}}"""
+    s""" {"EdgeUpdateProperties":{$srcID, $dstID, $properties}}"""
+  }
 
-
-  def genSetID():String = s""" "srcID":9 """
+  def genSetSrcID():String = s""" "srcID":9 """
+  def genSetDstID():String = s""" "dstID":10 """
   def genSrcID():String = s""" "srcID":${Random.nextInt(20)} """
   def genDstID():String = s""" "dstID":${Random.nextInt(20)} """
+
+  def genMessageID():String = s""" "messageID":$messageID """
 
   def genProperties(numOfProps:Int,randomProps:Boolean):String ={
     var properties = "\"properties\":{"

@@ -24,6 +24,8 @@ case class EdgeAdd(srcId:Int,destId:Int)
 case class EdgeAddWithProperties(srcId:Int,dstId:Int, properties: Map[String,String])
 case class RemoteEdgeAdd(srcId:Int,dstId:Int)
 case class RemoteEdgeAddWithProperties(srcId:Int,dstId:Int,properties: Map[String,String])
+case class EdgeUpdateProperties(srcId:Int,dstId:Int,property:Map[String,String])
+case class RemoteEdgeUpdateProperties(srcId:Int,dstId:Int,properties:Map[String,String])
 
 
 class GraphManager extends Actor{
@@ -40,6 +42,7 @@ class GraphManager extends Actor{
 
     case EdgeAdd(srcId,destID) => childMap(chooseChild(srcId)) ! EdgeAdd(srcId,destID)
     case EdgeAddWithProperties(srcId,dstID,properties) => childMap(chooseChild(srcId)) ! EdgeAddWithProperties(srcId,dstID,properties)
+    case EdgeUpdateProperties(srcId,dstId,properties) => childMap(chooseChild(srcId)) ! EdgeUpdateProperties(srcId,dstId,properties)
 
     case _ => println("message not recognized!")
   }

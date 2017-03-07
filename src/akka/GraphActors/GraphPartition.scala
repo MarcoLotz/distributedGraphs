@@ -33,6 +33,8 @@ class GraphPartition(id:Int) extends Actor {
     case EdgeAddWithProperties(srcId,dstId,properties) => edgeAddWithProperties(srcId,dstId,properties)
     case RemoteEdgeAddWithProperties(srcId,dstId,properties) => remoteEdgeAddWithProperties(srcId,dstId,properties)
 
+    case EdgeUpdateProperties(srcId,dstId,properties) => edgeUpdateWithProperties(srcId,dstId,properties)
+    case RemoteEdgeUpdateProperties(srcId,dstId,properties) => remoteEdgeUpdateWithProperties(srcId,dstId,properties)
   }
 
   //*******************EDGE BLOCK
@@ -59,19 +61,41 @@ class GraphPartition(id:Int) extends Actor {
     }
   }
 
+  def edgeUpdateWithProperties(srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
+    if(!edgeExists((srcId,dstId))){
+      printToFile(s"Edge between $srcId --> $dstId does not exist for update, creating....")
+      edgeAddWithProperties(srcId,dstId,properties)
+    }
+    edges((srcId,dstId)) match {
+      case re:RemoteEdge => partitionList(re.remotePartitionID) ! RemoteEdgeUpdateProperties(srcId,dstId,properties)
+      case e:Edge => {
+        printToFile(s"Updating Edge $srcId -> $dstId")
+        properties.foreach(prop => edges((srcId,dstId)) + (prop._1,prop._2)) // add all passed properties onto the list
+        printToFile(edges((srcId,dstId)).printProperties())
+      }
+    }
+  }
+
+
   //***************** HANDLERS FOR RECEIVING EDGE ADD FROM ANOTHER PARTITION
   def remoteEdgeAdd(srcId:Int,dstId:Int):Unit={
     printToFile(s"received shared edge in $childID")
-    if(!(vertices.contains(dstId))) vertexAdd(dstId) //check if dst exists as a vertex
+    if(!vertices.contains(dstId)) vertexAdd(dstId) //check if dst exists as a vertex
     edges = edges updated((srcId,dstId),new RemoteEdge(srcId,dstId,RemotePos.Source,getDstPartition(srcId)))
     //create 'remote edge' tracking the original source of the command where the src node is stored
   }
 
   def remoteEdgeAddWithProperties(srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
-    printToFile(s"received shared edge in $childID")
-    if(!(vertices.contains(dstId))) vertexAdd(dstId) //check if dst exists as a vertex
+    printToFile(s"received shared edge $srcId --> $dstId in $childID")
+    if(!vertices.contains(dstId)) vertexAdd(dstId) //check if dst exists as a vertex
     edges = edges updated((srcId,dstId),new RemoteEdge(srcId,dstId,RemotePos.Source,getDstPartition(srcId)))
     properties.foreach(prop => edges((srcId,dstId)) + (prop._1,prop._2)) // add all passed properties onto the list
+    printToFile(edges((srcId,dstId)).printProperties()) //print out the properties stored in the edge
+  }
+
+  def remoteEdgeUpdateWithProperties(srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
+    printToFile(s"received shared edge update $srcId --> $dstId in $childID")
+    properties.foreach(prop => edges((srcId,dstId)) + (prop._1,prop._2)) // update all passed properties onto the list
     printToFile(edges((srcId,dstId)).printProperties()) //print out the properties stored in the edge
   }
   //***************** END HANDLERS FOR RECEIVING EDGE ADD FROM ANOTHER PARTITION
@@ -80,17 +104,18 @@ class GraphPartition(id:Int) extends Actor {
 
   def checkDst(dstID:Int):Boolean = if(dstID%partitionList.size==childID) true else false
   def getDstPartition(dstID:Int):Int = dstID%partitionList.size
+  def edgeExists(srcdst:Tuple2[Int,Int]):Boolean = if(edges contains srcdst) true else false
 
   def localEdge(srcId:Int,dstId:Int):Unit={
     printToFile(s"Fully local edge in $childID")
-    if(!(vertices.contains(srcId))) vertexAdd(srcId) //check if src and dst both exist as vertices
-    if(!(vertices.contains(dstId))) vertexAdd(dstId)
+    if(!vertices.contains(srcId)) vertexAdd(srcId) //check if src and dst both exist as vertices
+    if(!vertices.contains(dstId)) vertexAdd(dstId)
     edges = edges updated((srcId,dstId),new Edge(srcId,dstId)) // add local edge
   }
 
   def remoteEdge(srcId:Int,dstId:Int):Unit={
     printToFile(s"Shared edge in $childID")
-    if(!(vertices.contains(srcId))) vertexAdd(srcId) //check if src exists as a vertex
+    if(!vertices.contains(srcId)) vertexAdd(srcId) //check if src exists as a vertex
     edges = edges updated((srcId,dstId),new RemoteEdge(srcId,dstId,RemotePos.Destination,getDstPartition(dstId)))
     //add 'remote' edge tracking the location of the destination vetex
   }
@@ -104,10 +129,6 @@ class GraphPartition(id:Int) extends Actor {
     try {fw.write(msg+"\n")}
     finally fw.close()
   }
-
-
-
-
 
 
   //*******************VERTEX BLOCK
@@ -134,6 +155,7 @@ class GraphPartition(id:Int) extends Actor {
 
   def vertexUpdateProperties(srcId:Int,properties:Map[String,String]):Unit = properties.foreach(l => vertexUpdateProperty(srcId,(l._1,l._2)))
 
+  def vertexExists(srcId:Int)= if(vertices contains srcId) true else false
 
   //*******************END VERTEX BLOCK
 
