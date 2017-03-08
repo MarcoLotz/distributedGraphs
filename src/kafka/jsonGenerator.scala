@@ -24,7 +24,7 @@ object jsonGenerator extends App{
   val config:ProducerConfig = new ProducerConfig(props)
   val producer = new Producer[String,String](config)
 
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeUpdateProperties()))
+  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeRemoval()))
   producer.close
 
   def genVertexAdd():String={
@@ -42,6 +42,12 @@ object jsonGenerator extends App{
     s""" {"VertexUpdateProperties":{$srcID, $properties}}"""
   }
 
+  def genVertexRemoval():String={
+    val srcID=genSetSrcID()
+    s""" {"VertexRemoval":{$srcID}}"""
+  }
+
+
   def genEdgeAdd():String={
     val srcID = genSetSrcID()
     val dstID = genSetDstID()
@@ -56,6 +62,12 @@ object jsonGenerator extends App{
     val properties =  genProperties(2,false)
     //s""" {"EdgeAdd":{$srcID, $dstID}}"""
     s""" {"EdgeUpdateProperties":{$srcID, $dstID, $properties}}"""
+  }
+
+  def genEdgeRemoval():String={
+    val srcID=genSetSrcID()
+    val dstID = genSetDstID()
+    s""" {"EdgeRemoval":{$srcID, $dstID}}"""
   }
 
   def genSetSrcID():String = s""" "srcID":9 """

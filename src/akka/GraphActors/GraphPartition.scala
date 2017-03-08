@@ -35,6 +35,9 @@ class GraphPartition(id:Int) extends Actor {
 
     case EdgeUpdateProperties(srcId,dstId,properties) => edgeUpdateWithProperties(srcId,dstId,properties)
     case RemoteEdgeUpdateProperties(srcId,dstId,properties) => remoteEdgeUpdateWithProperties(srcId,dstId,properties)
+
+    case EdgeRemoval(srcId,dstID) => edgeRemoval(srcId,dstID)
+    case RemoteEdgeRemoval(srcId,dstId) => remoteEdgeRemoval(srcId,dstId)
   }
 
   //*******************EDGE BLOCK
@@ -76,8 +79,24 @@ class GraphPartition(id:Int) extends Actor {
     }
   }
 
+  def edgeRemoval(srcId:Int,dstId:Int):Unit={
+    printToFile(s"Deleting edge $srcId --> $dstId")
+    if(edgeExists((srcId,dstId))){
+      edges((srcId,dstId)) match {
+        case re:RemoteEdge => {
+          edges = edges - ((srcId,dstId))
+          partitionList(re.remotePartitionID) ! RemoteEdgeRemoval(srcId,dstId)
+        }
+        case e:Edge => edges = edges - ((srcId,dstId))
+      }
+    }
+    printToFile(s"Current edges: ${edges.toString()}")
+  }
 
-  //***************** HANDLERS FOR RECEIVING EDGE ADD FROM ANOTHER PARTITION
+
+
+
+  //***************** HANDLERS FOR RECEIVING MESSAGE FROM ANOTHER PARTITION
   def remoteEdgeAdd(srcId:Int,dstId:Int):Unit={
     printToFile(s"received shared edge in $childID")
     if(!vertices.contains(dstId)) vertexAdd(dstId) //check if dst exists as a vertex
@@ -98,6 +117,13 @@ class GraphPartition(id:Int) extends Actor {
     properties.foreach(prop => edges((srcId,dstId)) + (prop._1,prop._2)) // update all passed properties onto the list
     printToFile(edges((srcId,dstId)).printProperties()) //print out the properties stored in the edge
   }
+
+  def remoteEdgeRemoval(srcId:Int,dstId:Int):Unit={
+    printToFile(s"Received remote edge removal $srcId ---> $dstId")
+    edges = edges - ((srcId,dstId))
+    printToFile(s"Current edges: ${edges.toString()}")
+  }
+
   //***************** END HANDLERS FOR RECEIVING EDGE ADD FROM ANOTHER PARTITION
 
   //************ EDGE HELPERS
@@ -112,7 +138,6 @@ class GraphPartition(id:Int) extends Actor {
     if(!vertices.contains(dstId)) vertexAdd(dstId)
     edges = edges updated((srcId,dstId),new Edge(srcId,dstId)) // add local edge
   }
-
   def remoteEdge(srcId:Int,dstId:Int):Unit={
     printToFile(s"Shared edge in $childID")
     if(!vertices.contains(srcId)) vertexAdd(srcId) //check if src exists as a vertex
@@ -122,14 +147,6 @@ class GraphPartition(id:Int) extends Actor {
 
   //************ END EDGE HELPERS
   //*******************END EDGE BLOCK
-
-
-  def printToFile(msg: String):Unit={
-    val fw = new FileWriter(s"partitionLogs/$childID.txt", true)
-    try {fw.write(msg+"\n")}
-    finally fw.close()
-  }
-
 
   //*******************VERTEX BLOCK
 
@@ -158,6 +175,12 @@ class GraphPartition(id:Int) extends Actor {
   def vertexExists(srcId:Int)= if(vertices contains srcId) true else false
 
   //*******************END VERTEX BLOCK
+
+  def printToFile(msg: String):Unit={
+    val fw = new FileWriter(s"partitionLogs/$childID.txt", true)
+    try {fw.write(msg+"\n")}
+    finally fw.close()
+  }
 
 
 }

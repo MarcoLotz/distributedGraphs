@@ -23,11 +23,12 @@ class CommandProcessor(graphManager: ActorRef) extends Actor{ //New Command Proc
     val parsedOBJ = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields //get the command type
 
-    if(commandKey.contains("VertexAdd")) vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject)
+         if(commandKey.contains("VertexAdd")) vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject)
     else if(commandKey.contains("VertexUpdateProperties")) vertexUpdateProperties(parsedOBJ.getFields("VertexUpdateProperties").head.asJsObject)
+    else if(commandKey.contains("VertexRemoval")) vertexRemoval(parsedOBJ.getFields("VertexRemoval").head.asJsObject)
     else if(commandKey.contains("EdgeAdd")) edgeAdd(parsedOBJ.getFields("EdgeAdd").head.asJsObject) //if addVertex, parse to handling function
     else if(commandKey.contains("EdgeUpdateProperties")) edgeUpdateProperties(parsedOBJ.getFields("EdgeUpdateProperties").head.asJsObject)
-
+    else if(commandKey.contains("EdgeRemoval")) edgeRemoval(parsedOBJ.getFields("EdgeRemoval").head.asJsObject)
   }
 
   def vertexAdd(command:JsObject):Unit = {
@@ -49,6 +50,9 @@ class CommandProcessor(graphManager: ActorRef) extends Actor{ //New Command Proc
     graphManager ! VertexUpdateProperties(srcID,properties) //send the srcID and properties to the graph manager
   }
 
+  def vertexRemoval(command:JsObject):Unit={
+
+  }
 
   def edgeAdd(command:JsObject):Unit = {
     val srcID = command.fields("srcID").toString().toInt //extract the srcID
@@ -69,6 +73,12 @@ class CommandProcessor(graphManager: ActorRef) extends Actor{ //New Command Proc
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
     graphManager ! EdgeUpdateProperties(srcID,dstID,properties) //send the srcID, dstID and properties to the graph manager
+  }
+
+  def edgeRemoval(command:JsObject):Unit={
+    val srcID = command.fields("srcID").toString().toInt //extract the srcID
+    val dstID = command.fields("dstID").toString().toInt //extract the dstID
+    graphManager ! EdgeRemoval(srcID,dstID) //send the srcID, dstID to graph manager
   }
 
 }

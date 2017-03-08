@@ -19,14 +19,17 @@ case class PassPartitionList(partitionList:Map[Int,ActorRef])
 case class VertexAdd(srcId:Int) //add a vertex (or add/update a property to an existing vertex)
 case class VertexAddWithProperties(srcId:Int, properties: Map[String,String])
 case class VertexUpdateProperties(srcId:Int, propery:Map[String,String])
+case class VertexRemoval(srcId:Int)
 
 case class EdgeAdd(srcId:Int,destId:Int)
 case class EdgeAddWithProperties(srcId:Int,dstId:Int, properties: Map[String,String])
+case class EdgeUpdateProperties(srcId:Int,dstId:Int,property:Map[String,String])
+case class EdgeRemoval(srcId:Int,dstID:Int)
+
+case class RemoteEdgeUpdateProperties(srcId:Int,dstId:Int,properties:Map[String,String])
 case class RemoteEdgeAdd(srcId:Int,dstId:Int)
 case class RemoteEdgeAddWithProperties(srcId:Int,dstId:Int,properties: Map[String,String])
-case class EdgeUpdateProperties(srcId:Int,dstId:Int,property:Map[String,String])
-case class RemoteEdgeUpdateProperties(srcId:Int,dstId:Int,properties:Map[String,String])
-
+case class RemoteEdgeRemoval(srcId:Int,dstId:Int)
 
 class GraphManager extends Actor{
   var running = false // bool to check if graph has already been initialized
@@ -43,6 +46,10 @@ class GraphManager extends Actor{
     case EdgeAdd(srcId,destID) => childMap(chooseChild(srcId)) ! EdgeAdd(srcId,destID)
     case EdgeAddWithProperties(srcId,dstID,properties) => childMap(chooseChild(srcId)) ! EdgeAddWithProperties(srcId,dstID,properties)
     case EdgeUpdateProperties(srcId,dstId,properties) => childMap(chooseChild(srcId)) ! EdgeUpdateProperties(srcId,dstId,properties)
+
+    case EdgeRemoval(srcId,dstID) => childMap(chooseChild(srcId)) ! EdgeRemoval(srcId,dstID)
+    case VertexRemoval(srcId) => childMap(chooseChild(srcId)) ! VertexRemoval(srcId)
+
 
     case _ => println("message not recognized!")
   }
