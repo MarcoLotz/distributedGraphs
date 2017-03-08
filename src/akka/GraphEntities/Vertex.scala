@@ -1,11 +1,17 @@
 package akka.GraphEntities
-
+import scala.collection.mutable.Set
 /**
   * Class representing Grpah Vertices
   */
 
 class Vertex(id:Int) extends Entity{
   val vertexId:Long = id
+  var associatedEdges = Set[Tuple2[Int,Int]]()
+
+  def addAssociatedEdge(srcId:Int,dstId:Int):Unit= associatedEdges = associatedEdges + ((srcId,dstId))
+  def removeAssociatedEdge(srcId:Int,dstId:Int):Unit= if(associatedEdges contains ((srcId,dstId))) associatedEdges = associatedEdges - ((srcId,dstId))
+  def hasAssociatedEdge(srcId:Int,dstId:Int):Boolean= associatedEdges contains ((srcId,dstId))
+
 
   override def printProperties():String = s"Vertex $vertexId with properties: \n"+super.printProperties()
 

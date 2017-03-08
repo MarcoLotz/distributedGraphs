@@ -26,6 +26,7 @@ class GraphPartition(id:Int) extends Actor {
     case VertexAdd(srcId) => vertexAdd(srcId) // If an add vertex command comes in, pass to handler function
     case VertexAddWithProperties(srcId,properties) => vertexAddWithProperties(srcId,properties)
     case VertexUpdateProperties(srcId,properties) => vertexUpdateProperties(srcId,properties)
+    case VertexRemoval(srcId) => vertexRemoval(srcId)
 
     case EdgeAdd(srcId,destID) => edgeAdd(srcId,destID)
     case RemoteEdgeAdd(srcId,dstId) => remoteEdgeAdd(srcId,dstId)
@@ -38,6 +39,7 @@ class GraphPartition(id:Int) extends Actor {
 
     case EdgeRemoval(srcId,dstID) => edgeRemoval(srcId,dstID)
     case RemoteEdgeRemoval(srcId,dstId) => remoteEdgeRemoval(srcId,dstId)
+
   }
 
   //*******************EDGE BLOCK
@@ -49,7 +51,6 @@ class GraphPartition(id:Int) extends Actor {
       partitionList(getDstPartition(dstId)) ! RemoteEdgeAdd(srcId,dstId)
     }
   }
-
   def edgeAddWithProperties(srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
     if(checkDst(dstId)) { //check if both vertices are local
       localEdge(srcId,dstId)
@@ -93,13 +94,11 @@ class GraphPartition(id:Int) extends Actor {
     printToFile(s"Current edges: ${edges.toString()}")
   }
 
-
-
-
   //***************** HANDLERS FOR RECEIVING MESSAGE FROM ANOTHER PARTITION
   def remoteEdgeAdd(srcId:Int,dstId:Int):Unit={
     printToFile(s"received shared edge in $childID")
     if(!vertices.contains(dstId)) vertexAdd(dstId) //check if dst exists as a vertex
+    vertices(dstId).addAssociatedEdge(srcId,dstId)
     edges = edges updated((srcId,dstId),new RemoteEdge(srcId,dstId,RemotePos.Source,getDstPartition(srcId)))
     //create 'remote edge' tracking the original source of the command where the src node is stored
   }
@@ -107,6 +106,7 @@ class GraphPartition(id:Int) extends Actor {
   def remoteEdgeAddWithProperties(srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
     printToFile(s"received shared edge $srcId --> $dstId in $childID")
     if(!vertices.contains(dstId)) vertexAdd(dstId) //check if dst exists as a vertex
+    vertices(dstId).addAssociatedEdge(srcId,dstId)
     edges = edges updated((srcId,dstId),new RemoteEdge(srcId,dstId,RemotePos.Source,getDstPartition(srcId)))
     properties.foreach(prop => edges((srcId,dstId)) + (prop._1,prop._2)) // add all passed properties onto the list
     printToFile(edges((srcId,dstId)).printProperties()) //print out the properties stored in the edge
@@ -136,11 +136,14 @@ class GraphPartition(id:Int) extends Actor {
     printToFile(s"Fully local edge in $childID")
     if(!vertices.contains(srcId)) vertexAdd(srcId) //check if src and dst both exist as vertices
     if(!vertices.contains(dstId)) vertexAdd(dstId)
+    vertices(srcId).addAssociatedEdge(srcId,dstId) //add associated edge to vertices so that if they are removed
+    vertices(dstId).addAssociatedEdge(srcId,dstId) //the edge can also be removed
     edges = edges updated((srcId,dstId),new Edge(srcId,dstId)) // add local edge
   }
   def remoteEdge(srcId:Int,dstId:Int):Unit={
     printToFile(s"Shared edge in $childID")
     if(!vertices.contains(srcId)) vertexAdd(srcId) //check if src exists as a vertex
+    vertices(srcId).addAssociatedEdge(srcId,dstId)
     edges = edges updated((srcId,dstId),new RemoteEdge(srcId,dstId,RemotePos.Destination,getDstPartition(dstId)))
     //add 'remote' edge tracking the location of the destination vetex
   }
@@ -171,6 +174,16 @@ class GraphPartition(id:Int) extends Actor {
   }
 
   def vertexUpdateProperties(srcId:Int,properties:Map[String,String]):Unit = properties.foreach(l => vertexUpdateProperty(srcId,(l._1,l._2)))
+
+  def vertexRemoval(srcId:Int):Unit={
+    println("here")
+      if(vertices contains srcId){
+        printToFile(s"Received remove vertex for $srcId")
+        printToFile(s"removing associated edges ${vertices(srcId).associatedEdges.toString()}")
+        vertices(srcId).associatedEdges.foreach(pair=> edgeRemoval(pair._1,pair._2)) //removal all associated edges with the vertex (this will also handle other partitions
+        vertices = vertices - srcId
+      }
+  }
 
   def vertexExists(srcId:Int)= if(vertices contains srcId) true else false
 

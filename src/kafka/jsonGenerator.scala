@@ -24,7 +24,7 @@ object jsonGenerator extends App{
   val config:ProducerConfig = new ProducerConfig(props)
   val producer = new Producer[String,String](config)
 
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeRemoval()))
+  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexRemoval()))
   producer.close
 
   def genVertexAdd():String={

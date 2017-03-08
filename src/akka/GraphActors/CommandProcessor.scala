@@ -51,7 +51,8 @@ class CommandProcessor(graphManager: ActorRef) extends Actor{ //New Command Proc
   }
 
   def vertexRemoval(command:JsObject):Unit={
-
+    val srcID = command.fields("srcID").toString().toInt //extract the srcID
+    graphManager ! VertexRemoval(srcID)
   }
 
   def edgeAdd(command:JsObject):Unit = {
