@@ -1,7 +1,7 @@
 package akka.GraphActors
 
 import akka.actor.{Actor, ActorRef, Props}
-import sys.process._
+import spray.json._
 
 
 /**
@@ -10,10 +10,13 @@ import sys.process._
   * to the correct partition
   */
 
+/**
+  * The Command Processor takes string message from Kafka and translates them into
+  * the correct case Class which can then be passed to the graph manager
+  * which will then pass it to the graph partition dealing with the associated vertex
+  */
 
 //The following block are all case classes (commands) which the manager can handle
-
-case class InitilizeGraph(children:Int) //class for starting the manager, passes the initial number of partitions
 case class PassPartitionList(partitionList:Map[Int,ActorRef])
 
 case class VertexAdd(srcId:Int) //add a vertex (or add/update a property to an existing vertex)
@@ -31,50 +34,82 @@ case class RemoteEdgeAdd(srcId:Int,dstId:Int)
 case class RemoteEdgeAddWithProperties(srcId:Int,dstId:Int,properties: Map[String,String])
 case class RemoteEdgeRemoval(srcId:Int,dstId:Int)
 
-class GraphManager extends Actor{
+class GraphManager() extends Actor{
   var running = false // bool to check if graph has already been initialized
   var childMap = Map[Int,ActorRef]() // map of graph partitions
   var children = 0 // var to store number of children
 
+  //************* MESSAGE HANDLING BLOCK
   override def receive: Receive = {
-    case InitilizeGraph(children) => initilizeGraph(children)
-
-    case VertexAdd(srcId) => childMap(chooseChild(srcId)) ! VertexAdd(srcId) //select handling partition and forward VertexAdd command
-    case VertexAddWithProperties(srcId,properties) => childMap(chooseChild(srcId)) ! VertexAddWithProperties(srcId,properties)
-    case VertexUpdateProperties(srcId,propery) => childMap(chooseChild(srcId)) ! VertexUpdateProperties(srcId,propery)
-
-    case EdgeAdd(srcId,destID) => childMap(chooseChild(srcId)) ! EdgeAdd(srcId,destID)
-    case EdgeAddWithProperties(srcId,dstID,properties) => childMap(chooseChild(srcId)) ! EdgeAddWithProperties(srcId,dstID,properties)
-    case EdgeUpdateProperties(srcId,dstId,properties) => childMap(chooseChild(srcId)) ! EdgeUpdateProperties(srcId,dstId,properties)
-
-    case EdgeRemoval(srcId,dstID) => childMap(chooseChild(srcId)) ! EdgeRemoval(srcId,dstID)
-    case VertexRemoval(srcId) => childMap(chooseChild(srcId)) ! VertexRemoval(srcId)
-
-
+    case command:PassPartitionList => {childMap = command.partitionList; children = command.partitionList.size}
+    case command:String => parseJSON(command)
     case _ => println("message not recognized!")
   }
+  def parseJSON(command:String):Unit={
+    println(command)
+    val parsedOBJ = command.parseJson.asJsObject //get the json object
+    val commandKey = parsedOBJ.fields //get the command type
 
+    if(commandKey.contains("VertexAdd")) vertexAdd(parsedOBJ.getFields("VertexAdd").head.asJsObject)
+    else if(commandKey.contains("VertexUpdateProperties")) vertexUpdateProperties(parsedOBJ.getFields("VertexUpdateProperties").head.asJsObject)
+    else if(commandKey.contains("VertexRemoval")) vertexRemoval(parsedOBJ.getFields("VertexRemoval").head.asJsObject)
+    else if(commandKey.contains("EdgeAdd")) edgeAdd(parsedOBJ.getFields("EdgeAdd").head.asJsObject) //if addVertex, parse to handling function
+    else if(commandKey.contains("EdgeUpdateProperties")) edgeUpdateProperties(parsedOBJ.getFields("EdgeUpdateProperties").head.asJsObject)
+    else if(commandKey.contains("EdgeRemoval")) edgeRemoval(parsedOBJ.getFields("EdgeRemoval").head.asJsObject)
+  }
+//************ END MESSAGE HANDLING BLOCK
 
-  def initilizeGraph(children:Int):Unit = {
-    if (running) println("Warning: duplicate start message received") // do not reinitialise the graph
-
-    else { // during initialisation
-      running = true //set running flag to true
-      this.children = children //set the number of children to passed value
-      for(i <- 0 until children){
-        val child =  context.actorOf(Props(new GraphPartition(i))) //create graph partitions
-        childMap = childMap updated (i,child) //and add to partition map
-      }
-      childMap.foreach(child => child._2 ! PassPartitionList(childMap))
-      resetLogs() //reset partition logs for testing
+  def vertexAdd(command:JsObject):Unit = {
+    val srcId = command.fields("srcID").toString().toInt //extract the srcID
+    if(command.fields.contains("properties")){ //if there are properties within the command
+    var properties = Map[String,String]() //create a vertex map
+      command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
+        properties = properties updated (pair._1,pair._2.toString())
+      })
+      childMap(chooseChild(srcId)) ! VertexAddWithProperties(srcId,properties) //send the srcID and properties to the graph manager
     }
+    else childMap(chooseChild(srcId)) ! VertexAdd(srcId) //if there are not any properties, just send the srcID
+  }
+
+  def vertexUpdateProperties(command:JsObject):Unit={
+    val srcId = command.fields("srcID").toString().toInt //extract the srcID
+    var properties = Map[String,String]() //create a vertex map
+    command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
+    childMap(chooseChild(srcId)) ! VertexUpdateProperties(srcId,properties) //send the srcID and properties to the graph parition
+  }
+
+  def vertexRemoval(command:JsObject):Unit={
+    val srcId = command.fields("srcID").toString().toInt //extract the srcID
+    childMap(chooseChild(srcId)) ! VertexRemoval(srcId)
+  }
+
+  def edgeAdd(command:JsObject):Unit = {
+    val srcId = command.fields("srcID").toString().toInt //extract the srcID
+    val dstId = command.fields("dstID").toString().toInt //extract the dstID
+    if(command.fields.contains("properties")){ //if there are properties within the command
+    var properties = Map[String,String]() //create a vertex map
+      command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
+        properties = properties updated (pair._1,pair._2.toString())
+      })
+      childMap(chooseChild(srcId)) ! EdgeAddWithProperties(srcId,dstId,properties) //send the srcID, dstID and properties to the graph manager
+    }
+    else childMap(chooseChild(srcId)) ! EdgeAdd(srcId,dstId)
+  }
+
+  def edgeUpdateProperties(command:JsObject):Unit={
+    val srcId = command.fields("srcID").toString().toInt //extract the srcID
+    val dstId = command.fields("dstID").toString().toInt //extract the dstID
+    var properties = Map[String,String]() //create a vertex map
+    command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
+    childMap(chooseChild(srcId)) ! EdgeUpdateProperties(srcId,dstId,properties) //send the srcID, dstID and properties to the graph manager
+  }
+
+  def edgeRemoval(command:JsObject):Unit={
+    val srcId = command.fields("srcID").toString().toInt //extract the srcID
+    val dstId = command.fields("dstID").toString().toInt //extract the dstID
+    childMap(chooseChild(srcId)) ! EdgeRemoval(srcId,dstId) //send the srcID, dstID to graph manager
   }
 
   def chooseChild(srcId:Int):Int = srcId % children //simple srcID hash at the moment
-
-  def resetLogs():Unit = {
-    "rm -r partitionLogs".!
-    "mkdir partitionLogs".!
-  }
 
 }

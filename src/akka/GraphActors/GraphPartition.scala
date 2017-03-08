@@ -176,7 +176,6 @@ class GraphPartition(id:Int) extends Actor {
   def vertexUpdateProperties(srcId:Int,properties:Map[String,String]):Unit = properties.foreach(l => vertexUpdateProperty(srcId,(l._1,l._2)))
 
   def vertexRemoval(srcId:Int):Unit={
-    println("here")
       if(vertices contains srcId){
         printToFile(s"Received remove vertex for $srcId")
         printToFile(s"removing associated edges ${vertices(srcId).associatedEdges.toString()}")
