@@ -19,20 +19,20 @@ import spray.json._
 //The following block are all case classes (commands) which the manager can handle
 case class PassPartitionList(partitionList:Map[Int,ActorRef])
 
-case class VertexAdd(srcId:Int) //add a vertex (or add/update a property to an existing vertex)
-case class VertexAddWithProperties(srcId:Int, properties: Map[String,String])
-case class VertexUpdateProperties(srcId:Int, propery:Map[String,String])
-case class VertexRemoval(srcId:Int)
+case class VertexAdd(msgId:Int,srcId:Int) //add a vertex (or add/update a property to an existing vertex)
+case class VertexAddWithProperties(msgId:Int,srcId:Int, properties: Map[String,String])
+case class VertexUpdateProperties(msgId:Int,srcId:Int, propery:Map[String,String])
+case class VertexRemoval(msgId:Int,srcId:Int)
 
-case class EdgeAdd(srcId:Int,destId:Int)
-case class EdgeAddWithProperties(srcId:Int,dstId:Int, properties: Map[String,String])
-case class EdgeUpdateProperties(srcId:Int,dstId:Int,property:Map[String,String])
-case class EdgeRemoval(srcId:Int,dstID:Int)
+case class EdgeAdd(msgId:Int,srcId:Int,destId:Int)
+case class EdgeAddWithProperties(msgId:Int,srcId:Int,dstId:Int, properties: Map[String,String])
+case class EdgeUpdateProperties(msgId:Int,srcId:Int,dstId:Int,property:Map[String,String])
+case class EdgeRemoval(msgId:Int,srcId:Int,dstID:Int)
 
-case class RemoteEdgeUpdateProperties(srcId:Int,dstId:Int,properties:Map[String,String])
-case class RemoteEdgeAdd(srcId:Int,dstId:Int)
-case class RemoteEdgeAddWithProperties(srcId:Int,dstId:Int,properties: Map[String,String])
-case class RemoteEdgeRemoval(srcId:Int,dstId:Int)
+case class RemoteEdgeUpdateProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String])
+case class RemoteEdgeAdd(msgId:Int,srcId:Int,dstId:Int)
+case class RemoteEdgeAddWithProperties(msgId:Int,srcId:Int,dstId:Int,properties: Map[String,String])
+case class RemoteEdgeRemoval(msgId:Int,srcId:Int,dstId:Int)
 
 class GraphManager() extends Actor{
   var running = false // bool to check if graph has already been initialized
@@ -60,30 +60,34 @@ class GraphManager() extends Actor{
 //************ END MESSAGE HANDLING BLOCK
 
   def vertexAdd(command:JsObject):Unit = {
+    val msgId = command.fields("messageID").toString().toInt
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     if(command.fields.contains("properties")){ //if there are properties within the command
     var properties = Map[String,String]() //create a vertex map
       command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
         properties = properties updated (pair._1,pair._2.toString())
       })
-      childMap(chooseChild(srcId)) ! VertexAddWithProperties(srcId,properties) //send the srcID and properties to the graph manager
+      childMap(chooseChild(srcId)) ! VertexAddWithProperties(msgId,srcId,properties) //send the srcID and properties to the graph manager
     }
-    else childMap(chooseChild(srcId)) ! VertexAdd(srcId) //if there are not any properties, just send the srcID
+    else childMap(chooseChild(srcId)) ! VertexAdd(msgId,srcId) //if there are not any properties, just send the srcID
   }
 
   def vertexUpdateProperties(command:JsObject):Unit={
+    val msgId = command.fields("messageID").toString().toInt
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    childMap(chooseChild(srcId)) ! VertexUpdateProperties(srcId,properties) //send the srcID and properties to the graph parition
+    childMap(chooseChild(srcId)) ! VertexUpdateProperties(msgId,srcId,properties) //send the srcID and properties to the graph parition
   }
 
   def vertexRemoval(command:JsObject):Unit={
+    val msgId = command.fields("messageID").toString().toInt
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
-    childMap(chooseChild(srcId)) ! VertexRemoval(srcId)
+    childMap(chooseChild(srcId)) ! VertexRemoval(msgId,srcId)
   }
 
   def edgeAdd(command:JsObject):Unit = {
+    val msgId = command.fields("messageID").toString().toInt
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
     if(command.fields.contains("properties")){ //if there are properties within the command
@@ -91,23 +95,25 @@ class GraphManager() extends Actor{
       command.fields("properties").asJsObject.fields.foreach( pair => { //add all of the pairs to the map
         properties = properties updated (pair._1,pair._2.toString())
       })
-      childMap(chooseChild(srcId)) ! EdgeAddWithProperties(srcId,dstId,properties) //send the srcID, dstID and properties to the graph manager
+      childMap(chooseChild(srcId)) ! EdgeAddWithProperties(msgId,srcId,dstId,properties) //send the srcID, dstID and properties to the graph manager
     }
-    else childMap(chooseChild(srcId)) ! EdgeAdd(srcId,dstId)
+    else childMap(chooseChild(srcId)) ! EdgeAdd(msgId,srcId,dstId)
   }
 
   def edgeUpdateProperties(command:JsObject):Unit={
+    val msgId = command.fields("messageID").toString().toInt
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
     var properties = Map[String,String]() //create a vertex map
     command.fields("properties").asJsObject.fields.foreach( pair => {properties = properties updated (pair._1,pair._2.toString())})
-    childMap(chooseChild(srcId)) ! EdgeUpdateProperties(srcId,dstId,properties) //send the srcID, dstID and properties to the graph manager
+    childMap(chooseChild(srcId)) ! EdgeUpdateProperties(msgId,srcId,dstId,properties) //send the srcID, dstID and properties to the graph manager
   }
 
   def edgeRemoval(command:JsObject):Unit={
+    val msgId = command.fields("messageID").toString().toInt
     val srcId = command.fields("srcID").toString().toInt //extract the srcID
     val dstId = command.fields("dstID").toString().toInt //extract the dstID
-    childMap(chooseChild(srcId)) ! EdgeRemoval(srcId,dstId) //send the srcID, dstID to graph manager
+    childMap(chooseChild(srcId)) ! EdgeRemoval(msgId,srcId,dstId) //send the srcID, dstID to graph manager
   }
 
   def chooseChild(srcId:Int):Int = srcId % children //simple srcID hash at the moment

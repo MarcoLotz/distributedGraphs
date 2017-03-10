@@ -4,7 +4,7 @@ import scala.collection.mutable.Set
   * Class representing Grpah Vertices
   */
 
-class Vertex(id:Int) extends Entity{
+class Vertex(msdId:Int,id:Int) extends Entity(msdId) {
   val vertexId:Long = id
   var associatedEdges = Set[Tuple2[Int,Int]]()
 

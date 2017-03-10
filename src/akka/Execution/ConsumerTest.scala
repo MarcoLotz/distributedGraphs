@@ -64,8 +64,8 @@ object ConsumerTest extends App {
   }
 
   def resetLogs():Unit = {
-    "rm -r partitionLogs".!
-    "mkdir partitionLogs".!
+    "rm -r entityLogs".!
+    "mkdir entityLogs".!
   }
 
 
