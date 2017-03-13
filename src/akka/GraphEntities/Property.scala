@@ -35,4 +35,9 @@ class Property(creationMessage:Int,key:String,value:String) {
     s"Property: ${id} ----- Previous State: $toReturn"
   }
 
+  def toStringCurrent: String = {
+    val toReturn = s"\n           MessageID ${previousState.head._1}: ${previousState.head._2._1} -- ${previousState.head._2._2} \n"
+    s"Property: ${id} ----- Current State: $toReturn"
+  }
+
 }

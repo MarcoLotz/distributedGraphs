@@ -26,12 +26,14 @@ object jsonGenerator extends App{
   if(!new java.io.File("CurrentMessageNumber.txt").exists) storeRunNumber(0) //check if there is previous run which has created messages, fi not create file
   else for (line <- Source.fromFile("CurrentMessageNumber.txt").getLines()) {currentMessage = line.toInt} //otherwise read previous number
 
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexAdd()))
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexAdd()))
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexAdd()))
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexAdd()))
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexAdd()))
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexAdd()))
+  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexAdd(9)))
+  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexRemoval(9)))
+  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexUpdateProperties(9)))
+  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexRemoval(9)))
+  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexRemoval(10)))
+  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexAdd(10)))
+  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexRemoval(10)))
+  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexUpdateProperties(10)))
   producer.close
   storeRunNumber(currentMessage) //once the run is over, store the current value so this may be used in the next iteration
 
@@ -43,32 +45,34 @@ object jsonGenerator extends App{
 
   def genVertexAdd():String={
     currentMessage+=1
-
-    val msgID = getMessageID()
-    val srcID = genSetSrcID()
-    val properties = genProperties(2,true)
-
-    s""" {"VertexAdd":{$msgID, $srcID, $properties}}"""
-
+    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID()}, ${genProperties(2,true)}}}"""
   }
+
+  def genVertexAdd(src:Int):String={ //overloaded method if you want to specify src ID
+    currentMessage+=1
+    s""" {"VertexAdd":{${getMessageID()}, ${genSrcID(src)}, ${genProperties(2,true)}}}"""
+  }
+
+
   def genVertexUpdateProperties():String={
     currentMessage+=1
+    s""" {"VertexUpdateProperties":{${getMessageID()}, ${genSrcID()}, ${genProperties(2,true)}}}"""
+  }
 
-    val msgID = getMessageID()
-    val srcID = genSrcID()
-    val properties = genProperties(2,true)
-
-    s""" {"VertexUpdateProperties":{$msgID, $srcID, $properties}}"""
+  def genVertexUpdateProperties(src:Int):String={ //overloaded to mass src
+    currentMessage+=1
+    s""" {"VertexUpdateProperties":{${getMessageID()}, ${genSrcID(src)}, ${genProperties(2,true)}}}"""
   }
 
   def genVertexRemoval():String={
     currentMessage+=1
-
-    val msgID = getMessageID()
-    val srcID=genSetSrcID()
-    s""" {"VertexRemoval":{$msgID, $srcID}}"""
+    s""" {"VertexRemoval":{${getMessageID()}, ${genSrcID()}}"""
   }
 
+  def genVertexRemoval(src:Int):String={
+    currentMessage+=1
+    s""" {"VertexRemoval":{${getMessageID()}, ${genSrcID(src)}}}"""
+  }
 
   def genEdgeAdd():String={
     currentMessage+=1
@@ -105,6 +109,8 @@ object jsonGenerator extends App{
   def genSetDstID():String = s""" "dstID":10 """
   def genSrcID():String = s""" "srcID":${Random.nextInt(20)} """
   def genDstID():String = s""" "dstID":${Random.nextInt(20)} """
+  def genSrcID(src:Int):String = s""" "srcID":$src """
+  def genDstID(dst:Int):String = s""" "dstID":$dst """
 
   def getMessageID():String = s""" "messageID":$currentMessage """
 
@@ -113,7 +119,7 @@ object jsonGenerator extends App{
     for(i <- 1 to numOfProps){
       val propnum = {if(randomProps) Random.nextInt(20) else i}
       if(i<numOfProps) properties = properties + s""" "property$propnum":${Random.nextInt()}, """
-      else properties = properties + s""" "property$i":${Random.nextInt()} }"""
+      else properties = properties + s""" "property$propnum":${Random.nextInt()} }"""
     }
     properties
   }

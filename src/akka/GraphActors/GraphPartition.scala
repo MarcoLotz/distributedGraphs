@@ -18,6 +18,7 @@ class GraphPartition(id:Int) extends Actor {
   var vertices = Map[Int,Vertex]() // Map of Vertices contained in the partition
   var edges = Map[(Int,Int),Edge]() // Map of Edges contained in the partition
   var partitionList = Map[Int,ActorRef]()
+  val logging = true
 
   override def receive: Receive = {
 
@@ -55,26 +56,26 @@ class GraphPartition(id:Int) extends Actor {
     if(checkDst(dstId)) { //check if both vertices are local
       localEdge(msgId,srcId,dstId)
       properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the list
-      printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
+      if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
     }
     else {
       remoteEdge(msgId,srcId,dstId)
       properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the list
       partitionList(getDstPartition(dstId)) ! RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties)
-      printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
+      if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
     }
   }
 
   def edgeUpdateWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
     if(!edgeExists((srcId,dstId))){
       edgeAddWithProperties(msgId,srcId,dstId,properties)
-      printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
+      if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
     }
     edges((srcId,dstId)) match {
       case re:RemoteEdge => partitionList(re.remotePartitionID) ! RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties)
       case e:Edge => {
         properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the list
-        printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
+        if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
       }
     }
   }
@@ -89,7 +90,7 @@ class GraphPartition(id:Int) extends Actor {
         case e:Edge => edges = edges - ((srcId,dstId))
       }
     }
-    printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
+    if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
   }
 
   //***************** HANDLERS FOR RECEIVING MESSAGE FROM ANOTHER PARTITION
@@ -98,7 +99,7 @@ class GraphPartition(id:Int) extends Actor {
     vertices(dstId).addAssociatedEdge(srcId,dstId)
     edges = edges updated((srcId,dstId),new RemoteEdge(srcId,dstId,RemotePos.Source,getDstPartition(srcId)))
     //create 'remote edge' tracking the original source of the command where the src node is stored
-    printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
+    if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
   }
 
   def remoteEdgeAddWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
@@ -106,17 +107,17 @@ class GraphPartition(id:Int) extends Actor {
     vertices(dstId).addAssociatedEdge(srcId,dstId)
     edges = edges updated((srcId,dstId),new RemoteEdge(srcId,dstId,RemotePos.Source,getDstPartition(srcId)))
     properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the list
-    printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
+    if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
   }
 
   def remoteEdgeUpdateWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
     properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // update all passed properties onto the list
-    printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
+    if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
   }
 
   def remoteEdgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
     edges = edges - ((srcId,dstId))
-    printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
+    if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
   }
 
   //***************** END HANDLERS FOR RECEIVING EDGE ADD FROM ANOTHER PARTITION
@@ -133,14 +134,14 @@ class GraphPartition(id:Int) extends Actor {
     vertices(srcId).addAssociatedEdge(srcId,dstId) //add associated edge to vertices so that if they are removed
     vertices(dstId).addAssociatedEdge(srcId,dstId) //the edge can also be removed
     edges = edges updated((srcId,dstId),new Edge(srcId,dstId)) // add local edge
-    printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
+    if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
   }
   def remoteEdge(msgId:Int,srcId:Int,dstId:Int):Unit={
     if(!vertices.contains(srcId)) vertexAdd(msgId,srcId) //check if src exists as a vertex
     vertices(srcId).addAssociatedEdge(srcId,dstId)
     edges = edges updated((srcId,dstId),new RemoteEdge(srcId,dstId,RemotePos.Destination,getDstPartition(dstId)))
     //add 'remote' edge tracking the location of the destination vetex
-    printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
+    if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
   }
 
   //************ END EDGE HELPERS
@@ -150,35 +151,34 @@ class GraphPartition(id:Int) extends Actor {
 
   def vertexAdd(msgId:Int,srcId:Int): Unit ={ //Vertex add handler function
     if(!(vertices contains srcId)){ // if the vertex doesn't already exist
-      vertices = vertices updated(srcId,new Vertex(msgId,srcId)) //create it and add it to the vertex map
+      vertices = vertices updated(srcId,new Vertex(msgId,srcId,true)) //create it and add it to the vertex map
     }
     else vertices(srcId) revive msgId //if it does exist, store the add in the vertex state
 
-    printToFile(s"Vertex$srcId",vertices(srcId).printHistory())
+    if(logging) printToFile(s"Vertex$srcId",vertices(srcId).printHistory())
   }
 
   def vertexAddWithProperties(msgId:Int,srcId:Int, properties:Map[String,String]):Unit ={
     vertexAdd(msgId,srcId) //add the vertex
-    vertexUpdateProperties(msgId,srcId,properties) //add all properties
+    properties.foreach(l => vertices(srcId) + (msgId,l._1,l._2)) //add all properties
+    if(logging) printToFile(s"Vertex$srcId",vertices(srcId).printHistory())
   }
 
-  def vertexUpdateProperty(msgId:Int,srcId:Int, property:(String,String)):Unit ={
-    if(!(vertices contains srcId)){ // if the vertex doesn't already exist
-      vertices = vertices updated(srcId,new Vertex(msgId,srcId)) //create it and add it to the vertex map
-    }
-    vertices(srcId) + (msgId,property._1,property._2) //add the new property
-  }
   def vertexUpdateProperties(msgId:Int,srcId:Int,properties:Map[String,String]):Unit = {
-    properties.foreach(l => vertexUpdateProperty(msgId,srcId,(l._1,l._2)))
-    printToFile(s"Vertex$srcId",vertices(srcId).printHistory())
+    if(!(vertices contains srcId)){ // if the vertex doesn't already exist
+      vertices = vertices updated(srcId,new Vertex(msgId,srcId,true)) //create it and add it to the vertex map
+    }
+    else vertices(srcId) revive msgId //else revive the vertex
+    properties.foreach(l => vertices(srcId) + (msgId,l._1,l._2))
+    if(logging) printToFile(s"Vertex$srcId",vertices(srcId).printHistory())
   }
 
   def vertexRemoval(msgId:Int,srcId:Int):Unit={
-      if(vertices contains srcId){
-        vertices(srcId).associatedEdges.foreach(pair=> edgeRemoval(msgId,pair._1,pair._2)) //removal all associated edges with the vertex (this will also handle other partitions
-        vertices = vertices - srcId
-        printToFile(s"Vertex$srcId",vertices(srcId).printHistory())
-      }
+    println(s"handling $msgId")
+    if(!(vertices contains srcId)) vertices = vertices updated(srcId,new Vertex(msgId,srcId,false)) //if remove arrives before add create and add remove info
+    else vertices(srcId) kill msgId //otherwise if it does already exist kill off
+    vertices(srcId).associatedEdges.foreach(pair=> edgeRemoval(msgId,pair._1,pair._2)) //kill all edges
+    if(logging) printToFile(s"Vertex$srcId",vertices(srcId).printHistory())
   }
 
   def vertexExists(srcId:Int)= if(vertices contains srcId) true else false
