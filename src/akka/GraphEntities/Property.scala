@@ -3,14 +3,15 @@ package akka.GraphEntities
 /**
   * Created by Mirate on 10/03/2017.
   */
-class Property(creationMessage:Int,key:String,value:String) {
+class Property(creationMessage:Int,key:String,value:String,removeList:List[(Int,(Boolean,String))]) {
   val initiallyCreated = creationMessage
   val id = key
-  var previousState:List[(Int,(Boolean,String))] = (creationMessage,(true,value))::Nil
+  var previousState:List[(Int,(Boolean,String))] = removeList //pass all past removes for storing entity incase the initial creation is the incorrect order
+  update(creationMessage,value) //add in the intial information
   def currentlyAlive():Boolean = previousState.head._2._1 //check front pos of list
 
   def update(msgID:Int,newValue:String):Unit={ //update list with new property value
-    if(msgID > previousState.head._1) previousState = (msgID,(true,newValue)) :: previousState //if the revive can go at the front of the list, then just add it
+    if(previousState == Nil || msgID > previousState.head._1) previousState = (msgID,(true,newValue)) :: previousState //if the revive can go at the front of the list, then just add it
     else previousState = previousState.head :: updateHelper(msgID,newValue,previousState.tail) //otherwise we need to find where it goes by looking through the list
   }
   private def updateHelper(msgID:Int,newValue:String,ps:List[(Int,(Boolean,String))]):List[(Int,(Boolean,String))] ={

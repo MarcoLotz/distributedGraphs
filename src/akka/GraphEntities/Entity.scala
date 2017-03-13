@@ -14,14 +14,13 @@ package akka.GraphEntities
 
 class Entity(creationMessage:Int, initialValue:Boolean) {
   var properties = Map[String,Property]()
-  val deleteCreated = !initialValue
   var previousState:List[(Int,Boolean)] = (creationMessage,initialValue)::Nil // if initial is delete set to false
-  var lastRemove = if(initialValue) 0 else creationMessage // if the entity is created by a remove, then this is the last remove
+  println(s"Initialised $previousState")
+  var removeList:List[(Int,(Boolean,String))] =  if(initialValue) Nil else (creationMessage,(false,""))::Nil //need to track all removes to pass to properties
 
   def currentlyAlive():Boolean = previousState.head._2 //check front pos of list
 
   def revive(msgID:Int):Unit={
-    println(s"in $msgID")
     if(msgID > previousState.head._1) previousState = (msgID,true) :: previousState //if the revive can go at the front of the list, then just add it
     else previousState = previousState.head :: reviveHelper(msgID,previousState.tail) //otherwise we need to find where it goes by looking through the list
   }
@@ -32,19 +31,22 @@ class Entity(creationMessage:Int, initialValue:Boolean) {
   }
 
   def kill(msgID:Int):Unit={
-    println(s"$msgID $lastRemove")
     if(msgID > previousState.head._1) previousState = (msgID,false) :: previousState //if the kill is the latest command put at the front
     else previousState = previousState.head :: conspireToCommitMurder(msgID,previousState.tail) //otherwise we need to find where it goes by looking through the list
-    if(msgID>lastRemove)lastRemove=msgID //set to latest remove if it is so
     properties.foreach(p => p._2.kill(msgID)) //send the message to all properties
+    updateRemoveList()
   }
 
   private def conspireToCommitMurder(msgID:Int,ps:List[(Int,Boolean)]):List[(Int,Boolean)] ={
     if(ps isEmpty) (msgID,false)::Nil //somehow reached the end of the list
     else if(msgID > ps.head._1) (msgID,false) :: ps //if we have found the position the command should go in the list, return it at the head of the ps
-    else ps.head :: reviveHelper(msgID,ps.tail) //otherwise keep looking
+    else ps.head :: conspireToCommitMurder(msgID,ps.tail) //otherwise keep looking
   }
 
+  def updateRemoveList() = {
+    removeList = previousState.filter(p => !p._2).map(p => (p._1,(false,""))) //filter to only removes and convert to a list which can be given to properties
+    println(removeList)
+  }
 
   def apply(property:String): Property = { //overrite the apply method so that we can do vertex("key") to easily retrieve properties
     properties(property)
@@ -53,8 +55,7 @@ class Entity(creationMessage:Int, initialValue:Boolean) {
   def +(msgID:Int,key:String,value:String):Unit = { //create + method so can write vertex + (k,v) to easily add new properties
     if(properties contains key) properties(key) update (msgID,value)
     else {
-      properties = properties updated (key,new Property(msgID,key,value)) //add new property
-      properties(key) kill lastRemove //inform new properties of the last remove, in case these come in the incorrect order
+      properties = properties updated (key,new Property(msgID,key,value,removeList)) //add new property passing all previous removes so the add can be slotted in accordingly
     }
   }
 
