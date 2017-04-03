@@ -35,7 +35,6 @@ case class RemoteEdgeAddWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:
 case class RemoteEdgeRemoval(msgId:Int,srcId:Int,dstId:Int)
 
 class GraphManager() extends Actor{
-  var running = false // bool to check if graph has already been initialized
   var childMap = Map[Int,ActorRef]() // map of graph partitions
   var children = 0 // var to store number of children
 

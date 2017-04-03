@@ -47,7 +47,6 @@ object jsonGenerator extends App{
     currentMessage+=1
     s""" {"VertexAdd":{${getMessageID()}, ${genSrcID()}, ${genProperties(2,true)}}}"""
   }
-
   def genVertexAdd(src:Int):String={ //overloaded method if you want to specify src ID
     currentMessage+=1
     s""" {"VertexAdd":{${getMessageID()}, ${genSrcID(src)}, ${genProperties(2,true)}}}"""
@@ -58,7 +57,6 @@ object jsonGenerator extends App{
     currentMessage+=1
     s""" {"VertexUpdateProperties":{${getMessageID()}, ${genSrcID()}, ${genProperties(2,true)}}}"""
   }
-
   def genVertexUpdateProperties(src:Int):String={ //overloaded to mass src
     currentMessage+=1
     s""" {"VertexUpdateProperties":{${getMessageID()}, ${genSrcID(src)}, ${genProperties(2,true)}}}"""
@@ -66,44 +64,42 @@ object jsonGenerator extends App{
 
   def genVertexRemoval():String={
     currentMessage+=1
-    s""" {"VertexRemoval":{${getMessageID()}, ${genSrcID()}}"""
+    s""" {"VertexRemoval":{${getMessageID()}, ${genSrcID()}}}"""
   }
-
   def genVertexRemoval(src:Int):String={
     currentMessage+=1
     s""" {"VertexRemoval":{${getMessageID()}, ${genSrcID(src)}}}"""
   }
 
+
+
   def genEdgeAdd():String={
     currentMessage+=1
-
-    val msgID = getMessageID()
-    val srcID = genSetSrcID()
-    val dstID = genSetDstID()
-    val properties =  genProperties(2,true)
-    //s""" {"EdgeAdd":{$srcID, $dstID}}"""
-    s""" {"EdgeAdd":{$msgID, $srcID, $dstID, $properties}}"""
+    s""" {"EdgeAdd":{${getMessageID()}, ${genSrcID()}, ${genDstID()}, ${genProperties(2,true)}}}"""
+  }
+  def genEdgeAdd(src:Int,dst:Int):String={
+    currentMessage+=1
+    s""" {"EdgeAdd":{${getMessageID()}, ${genSrcID(src)}, ${genDstID(dst)}, ${genProperties(2,true)}}}"""
   }
 
   def genEdgeUpdateProperties():String={
     currentMessage+=1
-
-    val msgID = getMessageID()
-    val srcID = genSetSrcID()
-    val dstID = genSetDstID()
-    val properties =  genProperties(2,true)
-    //s""" {"EdgeAdd":{$srcID, $dstID}}"""
-    s""" {"EdgeUpdateProperties":{$msgID, $srcID, $dstID, $properties}}"""
+    s""" {"EdgeUpdateProperties":{${getMessageID()}, ${genSrcID()}, ${genDstID()}, ${genProperties(2,true)}}}"""
+  }
+  def genEdgeUpdateProperties(src:Int,dst:Int):String={
+    currentMessage+=1
+    s""" {"EdgeUpdateProperties":{${getMessageID()}, ${genSrcID(src)}, ${genDstID(dst)}, ${genProperties(2,true)}}}"""
   }
 
   def genEdgeRemoval():String={
     currentMessage+=1
-
-    val msgID = getMessageID()
-    val srcID=genSetSrcID()
-    val dstID = genSetDstID()
-    s""" {"EdgeRemoval":{$msgID, $srcID, $dstID}}"""
+    s""" {"EdgeRemoval":{${getMessageID()}, ${genSrcID()}, ${genDstID()}}}"""
   }
+  def genEdgeRemoval(src:Int,dst:Int):String={
+    currentMessage+=1
+    s""" {"EdgeRemoval":{${getMessageID()}, ${genSrcID(src)}, ${genDstID(dst)}}}"""
+  }
+
 
   def genSetSrcID():String = s""" "srcID":9 """
   def genSetDstID():String = s""" "dstID":10 """

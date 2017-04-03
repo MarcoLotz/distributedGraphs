@@ -3,7 +3,7 @@ package akka.GraphEntities
 /**
   * Created by Mirate on 01/03/2017.
   */
-class Edge(src: Int, dst:Int) extends Entity(1,true){
+class Edge(msgID:Int,initialValue:Boolean,src: Int, dst:Int) extends Entity(1,initialValue){
   val srcID = src
   val dstID = dst
 

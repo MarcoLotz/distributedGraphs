@@ -6,7 +6,7 @@ package akka.GraphEntities
   * currently only stores what end of the edge is remote
   * and which partition this other half is stored in
   */
-class RemoteEdge(srcId:Int,dstId:Int,srcOrDst:RemotePos.Value,remoteID:Int) extends Edge(srcId,dstId){
+class RemoteEdge(msgID:Int,initialValue:Boolean,srcId:Int,dstId:Int,srcOrDst:RemotePos.Value,remoteID:Int) extends Edge(msgID,initialValue,srcId,dstId){
   val remotePos:RemotePos.Value =srcOrDst
   val remotePartitionID:Int = remoteID
 }
