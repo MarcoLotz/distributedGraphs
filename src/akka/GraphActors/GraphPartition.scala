@@ -52,26 +52,16 @@ class GraphPartition(id:Int) extends Actor {
     }
   }
   def edgeAddWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
-    if(checkDst(dstId)) { //check if both vertices are local
-      localEdge(msgId,true,srcId,dstId)
-      properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the list
-      if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
-    }
+    if(checkDst(dstId)) localEdge(msgId,true,srcId,dstId) //check if both vertices are local
     else {
       remoteEdge(msgId,true,srcId,dstId)
-      properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the list
       partitionList(getPartition(dstId)) ! RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties)
-      if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
     }
-  }
-
-  def edgeUpdateWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
-    if(!edgeExists((srcId,dstId))) edgeAddWithProperties(msgId,srcId,dstId,properties)
-    else properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the list
-    edges((srcId,dstId)) match {case re:RemoteEdge => partitionList(re.remotePartitionID) ! RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) } //inform the other partition
-
+    properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the list
     if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
   }
+
+  def edgeUpdateWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit= edgeAddWithProperties(msgId,srcId,dstId,properties)
 
   def edgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
     if(!edgeExists((srcId,dstId))){
@@ -120,11 +110,6 @@ class GraphPartition(id:Int) extends Actor {
   def getPartition(ID:Int):Int = ID%partitionList.size
   def edgeExists(srcdst:Tuple2[Int,Int]):Boolean = if(edges contains srcdst) true else false
 
-  def checkVertexWithEdge(msgId:Int,id:Int,srcId:Int,dstId:Int,initialValue:Boolean):Unit= {
-    if(!vertices.contains(id)) vertices = vertices updated(id,new Vertex(msgId,id,initialValue))
-    vertices(id).addAssociatedEdge(srcId,dstId) //add associated edge to vertices so that if they are removed the edge can also be removed
-  }
-
   def localEdge(msgId:Int,intiailValue:Boolean,srcId:Int,dstId:Int):Unit={
     checkVertexWithEdge(msgId,srcId,srcId,dstId,intiailValue) //check if src and dst both exist as vertices
     checkVertexWithEdge(msgId,dstId,srcId,dstId,intiailValue)
@@ -141,6 +126,21 @@ class GraphPartition(id:Int) extends Actor {
 
     if(logging) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
   }
+  
+  def checkVertexWithEdge(msgId:Int,id:Int,srcId:Int,dstId:Int,initialValue:Boolean):Unit= {
+    if(initialValue){
+      if(!vertices.contains(id)) vertices = vertices updated(id,new Vertex(msgId,id,initialValue)) //if the vertex does not exist and it is an edge add, we add it in
+      else vertices(id) revive msgId // if the edge already exists and it is an edge add then teh vertex will also be revived.
+    }
+    else{ // if it is an edge remove
+      if(!vertices.contains(id)){ //and the vertex does not exist
+        vertices = vertices updated(id,new Vertex(msgId,id,initialValue)) // first create it
+        vertices(id).wipe() //then wipe it as the vertex was not 'killed' at this point, if it was run sequentially the kill would not be in the history
+      }
+    }
+    vertices(id).addAssociatedEdge(srcId,dstId) //add associated edge to vertices so that if they are removed the edge can also be removed
+  }
+
 
   //************ END EDGE HELPERS
   //*******************END EDGE BLOCK

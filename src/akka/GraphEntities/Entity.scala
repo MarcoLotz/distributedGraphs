@@ -11,10 +11,11 @@ class Entity(creationMessage:Int, initialValue:Boolean) {
   var previousState:List[(Int,Boolean)] = (creationMessage,initialValue)::Nil // if initial is delete set to false
   var removeList:List[(Int,(Boolean,String))] =  if(initialValue) Nil else (creationMessage,(false,""))::Nil //need to track all removes to pass to properties
   def currentlyAlive():Boolean = previousState.head._2 //check front pos of list
-
+  def wipe() = previousState = Nil;removeList=Nil
   //************* REVIVE BLOCK *********************\\
   def revive(msgID:Int):Unit={
-    if(msgID > previousState.head._1) previousState = (msgID,true) :: previousState //if the revive can go at the front of the list, then just add it
+    if(previousState==Nil) previousState = (msgID,true) :: previousState // if the vertex has been wiped then no need to do anything
+    else if(msgID > previousState.head._1) previousState = (msgID,true) :: previousState //if the revive can go at the front of the list, then just add it
     else previousState = previousState.head :: reviveHelper(msgID,previousState.tail) //otherwise we need to find where it goes by looking through the list
   }
   private def reviveHelper(msgID:Int,ps:List[(Int,Boolean)]):List[(Int,Boolean)] ={
@@ -26,6 +27,7 @@ class Entity(creationMessage:Int, initialValue:Boolean) {
 
   //************* KILL ENTITY BLOCK *********************\\
   def kill(msgID:Int):Unit={
+    if(previousState==Nil) previousState = (msgID,false)::previousState // if the vertex has been wiped then no need to do anything
     if(msgID > previousState.head._1) previousState = (msgID,false) :: previousState //if the kill is the latest command put at the front
     else previousState = previousState.head :: conspireToCommitMurder(msgID,previousState.tail) //otherwise we need to find where it goes by looking through the list
     properties.foreach(p => p._2.kill(msgID)) //send the message to all properties
