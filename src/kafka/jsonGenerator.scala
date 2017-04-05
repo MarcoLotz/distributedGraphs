@@ -26,16 +26,22 @@ object jsonGenerator extends App{
   if(!new java.io.File("CurrentMessageNumber.txt").exists) storeRunNumber(0) //check if there is previous run which has created messages, fi not create file
   else for (line <- Source.fromFile("CurrentMessageNumber.txt").getLines()) {currentMessage = line.toInt} //otherwise read previous number
 
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexAdd(9)))
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexRemoval(9)))
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexUpdateProperties(9)))
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexRemoval(9)))
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexRemoval(10)))
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexAdd(10)))
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexRemoval(10)))
-  producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexUpdateProperties(10)))
+  genRandomCommands(100)
+
   producer.close
   storeRunNumber(currentMessage) //once the run is over, store the current value so this may be used in the next iteration
+
+  def genRandomCommands(number:Int):Unit={
+    for (i <- 0 until number){
+      val random = Random.nextFloat()
+           if(random<=0.2) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexAdd()))
+      else if(random<=0.4) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexUpdateProperties()))
+      else if(random<=0.5) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexRemoval()))
+      else if(random<=0.7) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeAdd()))
+      else if(random<=0.8) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeUpdateProperties()))
+      else                 producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeRemoval()))
+    }
+  }
 
   def storeRunNumber(runNumber:Int):Unit={
     val fw = new FileWriter(s"CurrentMessageNumber.txt") //if not create the file and show that we are starting at 0
