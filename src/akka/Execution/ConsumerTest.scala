@@ -31,13 +31,20 @@ object ConsumerTest extends App {
 
   var childMap = Map[Int,ActorRef]() // map of graph partitions
   var managerMap = Map[Int,ActorRef]() //create map of command processors
-  val managerCount = 4 //Number of Command Processors (Incoming String to Case class)
-  val childCount = 3 // number of graph partitions
+  var childMapTest = Map[Int,ActorRef]() // map of graph partitions for testing
+  var managerMapTest = Map[Int,ActorRef]() //create map of command processors for testing
+
+  val managerCount = 3 //Number of Command Processors (Incoming String to Case class)
+  val childCount = 4 // number of graph partitions
+
   initilizeGraph() //fill map of managers and partitions
+  initilizeTestGraph()
+  val testing = true
 
   Consumer.committableSource(consumerSettings, Subscriptions.topics("jsonMessages")) //subscribe to the update topic
     .map(msg => {
       chooseProcessor(msg.record.value()) //for each message, decide which command processor should handle it
+      if(testing) managerMapTest(0) ! msg.record.value()
     })
     .runWith(Sink.ignore) // no further message flow as handled in map
 
@@ -50,7 +57,7 @@ object ConsumerTest extends App {
 
   def initilizeGraph():Unit = {
     for(i <- 0 until childCount){
-      val child =  system.actorOf(Props(new GraphPartition(i))) //create graph partitions
+      val child =  system.actorOf(Props(new GraphPartition(i,false))) //create graph partitions
       childMap = childMap updated (i,child) //and add to partition map
     }
     childMap.foreach(child => child._2 ! PassPartitionList(childMap))
@@ -61,6 +68,16 @@ object ConsumerTest extends App {
       graphManager ! PassPartitionList(childMap)
     }
     resetLogs() //reset partition logs for testing
+  }
+
+  def initilizeTestGraph():Unit = {
+    val child =  system.actorOf(Props(new GraphPartition(0,true))) //create graph partitions
+    childMapTest = childMapTest updated (0,child) //and add to partition map
+    childMapTest.foreach(child => child._2 ! PassPartitionList(childMapTest))
+
+    val graphManager = system.actorOf(Props[GraphManager]) //create our graph manager
+    managerMapTest = managerMapTest updated (0,graphManager) //and add to map
+    graphManager ! PassPartitionList(childMapTest)
   }
 
   def resetLogs():Unit = {

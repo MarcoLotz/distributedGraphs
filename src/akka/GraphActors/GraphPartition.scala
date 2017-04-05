@@ -12,12 +12,13 @@ import java.io._
 
 //need to finish up remove edge and do remote and beyond - need to deal with removes from vertex and store in the vertex when edges were first added etc.
 
-class GraphPartition(id:Int) extends Actor {
+class GraphPartition(id:Int,test:Boolean) extends Actor {
   val childID = id  //ID which refers to the partitions position in the graph manager map
   var vertices = Map[Int,Vertex]() // Map of Vertices contained in the partition
   var edges = Map[(Int,Int),Edge]() // Map of Edges contained in the partition
   var partitionList = Map[Int,ActorRef]()
   val logging = true
+  val testPartition = test
 
   override def receive: Receive = {
 
@@ -98,6 +99,7 @@ class GraphPartition(id:Int) extends Actor {
   def addRemoteEdgeS(msgId:Int,srcId:Int,dstId:Int,initialValue:Boolean):Unit = edges = edges updated((srcId,dstId),new RemoteEdge(msgId,initialValue,srcId,dstId,RemotePos.Source,getPartition(srcId)))
   def addRemoteEdgeD(msgId:Int,srcId:Int,dstId:Int,initialValue:Boolean):Unit = edges = edges updated((srcId,dstId),new RemoteEdge(msgId,initialValue,srcId,dstId,RemotePos.Destination,getPartition(dstId)))
   def addEdge(msgId:Int,srcId:Int,dstId:Int,initialValue:Boolean):Unit = edges = edges updated((srcId,dstId),new Edge(msgId,initialValue,srcId,dstId))
+  def addVertex(msgId:Int,id:Int,initialValue:Boolean):Vertex ={ vertices = vertices updated(id,new Vertex(msgId,id,initialValue)); vertices(id)}
 
   def localEdge(msgId:Int, srcId:Int, dstId:Int, initialValue:Boolean):Unit={
     checkVertexWithEdge(msgId,srcId,srcId,dstId,initialValue); checkVertexWithEdge(msgId,dstId,srcId,dstId,initialValue) //check if src and dst both exist as vertices
@@ -112,24 +114,16 @@ class GraphPartition(id:Int) extends Actor {
     else addRemoteEdgeD(msgId,srcId,dstId,initialValue) //else create the remote edge
   }
 
-  def liveVertexAdd(msgId:Int,id:Int,srcId:Int,dstId:Int):Unit={
-    if(!vertices.contains(id)) vertices = vertices updated(id,new Vertex(msgId,id,true)) //if the vertex does not exist and it is an edge add, we add it in
-    else vertices(id) revive msgId // if the edge already exists and it is an edge add then teh vertex will also be revived.
-  }
-
   def checkVertexWithEdge(msgId:Int,id:Int,srcId:Int,dstId:Int,initialValue:Boolean):Unit= {
     if(initialValue) vertexAdd(msgId,id)
-    else if(!vertices.contains(id)){ // if the command is a remove and the vertex does not exist
-      vertices = vertices updated(id,new Vertex(msgId,id,initialValue)) // first create it
-      vertices(id).wipe() //then wipe it as the vertex was not 'killed' at this point, if it was run sequentially the kill would not be in the history
-    }
+    else if(!vertices.contains(id)) addVertex(msgId,id,initialValue).wipe() //if the command is a remove and the vertex does not exist, first create it then wipe it as the vertex was not 'killed' at this point, if it was run sequentially the kill would not be in the history
     vertices(id).addAssociatedEdge(srcId,dstId) //add associated edge to vertices so that if they are removed the edge can also be removed
   }
   //*******************END EDGE BLOCK
 
   //*******************PRINT BLOCK
   def printToFile(entityName:String,msg: String):Unit={
-    val fw = new FileWriter(s"entityLogs/$entityName.txt")
+    val fw = if(testPartition) new FileWriter(s"testEntityLogs/$entityName.txt") else new FileWriter(s"entityLogs/$entityName.txt")
     try {fw.write(msg+"\n")}
     finally fw.close()
   }
