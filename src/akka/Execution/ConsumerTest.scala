@@ -43,7 +43,7 @@ object ConsumerTest extends App {
 
   Consumer.committableSource(consumerSettings, Subscriptions.topics("jsonMessages")) //subscribe to the update topic
     .map(msg => {
-      chooseProcessor(msg.record.value()) //for each message, decide which command processor should handle it
+      //chooseProcessor(msg.record.value()) //for each message, decide which command processor should handle it
       if(testing) managerMapTest(0) ! msg.record.value()
     })
     .runWith(Sink.ignore) // no further message flow as handled in map

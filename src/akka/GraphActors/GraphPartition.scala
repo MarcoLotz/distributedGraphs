@@ -54,7 +54,7 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
   def vertexRemoval(msgId:Int,srcId:Int):Unit={
     if(!(vertices contains srcId)) vertices = vertices updated(srcId,new Vertex(msgId,srcId,false)) //if remove arrives before add create and add remove info
     else vertices(srcId) kill msgId //otherwise if it does already exist kill off
-    vertices(srcId).associatedEdges.foreach(pair=> edgeRemoval(msgId,pair._1,pair._2)) //kill all edges
+    vertices(srcId).associatedEdges.foreach(pair=> if(edges contains (pair._1,pair._2)) edges((pair._1,pair._2)) kill msgId)//kill all edges
   }
 
   //*******************EDGE BLOCK
@@ -69,8 +69,8 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
     properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the list
   }
   def edgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
-    if(checkDst(dstId)) localEdge(msgId,srcId,dstId,true)
-    else {remoteEdge(msgId,srcId,dstId,true); informRemoteRemove(msgId,srcId,dstId)}
+    if(checkDst(dstId)) localEdge(msgId,srcId,dstId,false)
+    else {remoteEdge(msgId,srcId,dstId,false); informRemoteRemove(msgId,srcId,dstId)}
   }
 
   def informRemoteAdd(msgId:Int,srcId:Int,dstId:Int):Unit =  partitionList(getPartition(dstId)) ! RemoteEdgeAdd(msgId,srcId,dstId)
@@ -102,7 +102,9 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
   def addVertex(msgId:Int,id:Int,initialValue:Boolean):Vertex ={ vertices = vertices updated(id,new Vertex(msgId,id,initialValue)); vertices(id)}
 
   def localEdge(msgId:Int, srcId:Int, dstId:Int, initialValue:Boolean):Unit={
-    checkVertexWithEdge(msgId,srcId,srcId,dstId,initialValue); checkVertexWithEdge(msgId,dstId,srcId,dstId,initialValue) //check if src and dst both exist as vertices
+    checkVertexWithEdge(msgId,srcId,srcId,dstId,initialValue)
+    if(!(srcId==dstId)) checkVertexWithEdge(msgId,dstId,srcId,dstId,initialValue) //check if src and dst both exist as vertices -- do not run again if src/dst are same as redundant
+
     if((edges contains (srcId,dstId)) && initialValue) edges((srcId,dstId)) revive msgId //if edge exists and addEdge called the function - add the revive to list
     else if((edges contains (srcId,dstId)) && !initialValue) edges((srcId,dstId)) kill msgId //if edge exists and removeEdge called the function - add the kill to list
     else addEdge(msgId,srcId,dstId,initialValue) // else create new edge
