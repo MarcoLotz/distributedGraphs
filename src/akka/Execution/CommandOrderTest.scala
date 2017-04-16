@@ -57,7 +57,7 @@ object CommandOrderTest extends App{
 
   def file2lines(file:File):List[String] = {
     try {Source.fromFile(file).getLines().toList}
-    catch {case e: Exception => println(s"ERROR! ${file.getName}"); List()}
+    catch {case e: Exception => println(s"ERROR! ${file.getName} ${e}"); List()}
   }
 
   def entityFileMap(dir: String):Map[String,File] = {

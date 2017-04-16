@@ -39,7 +39,7 @@ object jsonGenerator extends App{
       //else if(random<=0.5) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexRemoval()))
       else if(random<=0.7) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeAdd()))
       else if(random<=0.8) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeUpdateProperties()))
-      //else                 producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeRemoval()))
+      else                 producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeRemoval()))
     }
   }
 
@@ -119,7 +119,7 @@ object jsonGenerator extends App{
   def genProperties(numOfProps:Int,randomProps:Boolean):String ={
     var properties = "\"properties\":{"
     for(i <- 1 to numOfProps){
-      val propnum = {if(randomProps) Random.nextInt(40) else i}
+      val propnum = {if(randomProps) Random.nextInt(50) else i}
       if(i<numOfProps) properties = properties + s""" "property$propnum":${Random.nextInt()}, """
       else properties = properties + s""" "property$propnum":${Random.nextInt()} }"""
     }

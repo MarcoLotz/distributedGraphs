@@ -119,7 +119,7 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
         vertices(srcId) wipe()
       }
       if(!(vertices contains dstId)){ //do the same for the destination node
-        vertices = vertices updated(dstId,new Vertex(msgId,srcId,true))
+        vertices = vertices updated(dstId,new Vertex(msgId,dstId,true))
         vertices(dstId) wipe()
       }
       vertices(srcId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the source node
@@ -142,7 +142,7 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
     else edges = edges updated((srcId,dstId),new Edge(msgId,false,srcId,dstId)) // otherwise create and initialise as false
 
     if(!(vertices contains dstId)){ //check if the destination node exists, if it does not create it and wipe the history
-      vertices = vertices updated(dstId,new Vertex(msgId,srcId,true))
+      vertices = vertices updated(dstId,new Vertex(msgId,dstId,true))
       vertices(dstId) wipe()
     }
     vertices(dstId) addAssociatedEdge (srcId,dstId) //add the edge to the destination nodes associated list

@@ -10,8 +10,7 @@ class Entity(creationMessage:Int, initialValue:Boolean) {
   var properties = Map[String,Property]()
   var previousState:List[(Int,Boolean)] = (creationMessage,initialValue)::Nil // if initial is delete set to false
   var removeList:List[(Int,(Boolean,String))] =  if(initialValue) Nil else (creationMessage,(false,""))::Nil //need to track all removes to pass to properties
-  def currentlyAlive():Boolean = previousState.head._2 //check front pos of list
-  def wipe() = previousState = Nil;removeList=Nil
+
   //************* REVIVE BLOCK *********************\\
   def revive(msgID:Int):Unit={
     if(previousState==Nil) previousState = (msgID,true) :: previousState // if the vertex has been wiped then no need to do anything
@@ -39,7 +38,7 @@ class Entity(creationMessage:Int, initialValue:Boolean) {
     else if(msgID > ps.head._1) (msgID,false) :: ps //if we have found the position the command should go in the list, return it at the head of the ps
     else ps.head :: conspireToCommitMurder(msgID,ps.tail) //otherwise keep looking
   }
-  def updateRemoveList() = removeList = previousState.filter(p => !p._2).map(p => (p._1,(false,""))) //filter to only removes and convert to a list which can be given to properties
+  def updateRemoveList() = removeList = previousState.filter(p => p._2==false).map(p => (p._1,(false,""))) //filter to only removes and convert to a list which can be given to properties
   //************* END KILL BLOCK *********************\\
 
   //************* PROPERTY BLOCK *********************\\
@@ -69,5 +68,10 @@ class Entity(creationMessage:Int, initialValue:Boolean) {
     toReturn
   }
   //************* END PRINT ENTITY DETAILS BLOCK *********************\\
+
+  def wipe() = {
+    previousState = Nil
+    removeList=Nil
+  }
 
 }

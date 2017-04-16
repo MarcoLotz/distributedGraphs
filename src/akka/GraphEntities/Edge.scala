@@ -8,4 +8,5 @@ class Edge(msgID:Int,initialValue:Boolean,src: Int, dst:Int) extends Entity(msgI
   val dstID = dst
 
   override def printProperties(): String = s"Edge between $srcID and $dstID: with properties: \n"+ super.printProperties()
+
 }
