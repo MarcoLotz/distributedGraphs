@@ -12,8 +12,11 @@ object CommandOrderTest extends App{
 
   val serialised = entityFileMap("testEntityLogs")
   val toTest = entityFileMap("EntityLogs")
-  //toTest.foreach(f => println(f))
+  var anyIssues = false
   compareTo()
+
+  println(s"Issues: $anyIssues")
+
 
   def compareTo():Unit={
 
@@ -36,16 +39,17 @@ object CommandOrderTest extends App{
   def file2file(sFile:List[String],tFile:List[String]):Unit={
     if(sFile==Nil){
       if(tFile==Nil) println("    Both files ended at the same time")
-      else println("    sFile ended, but tFile still has more")
+      else {println("    sFile ended, but tFile still has more"); anyIssues = true;}
     }
     else if(tFile==Nil){
       if(sFile==Nil) println("     Both files ended at the same time")
-      else println("    tFile ended, but sFile still has more")
+      else {println("    tFile ended, but sFile still has more"); anyIssues = true;}
     }
     else if(sFile.head==tFile.head){
       file2file(sFile.tail,tFile.tail)
     }
     else {
+      anyIssues = true;
       println(s"    Line mismatch! sfile has ${sFile.head} whilst tfile has ${tFile.head}")
     }
 

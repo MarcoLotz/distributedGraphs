@@ -65,7 +65,7 @@ class Entity(creationMessage:Int, initialValue:Boolean) {
   }
   def printProperties():String ={ //test function to make sure the properties are being added to the correct vertices
     var toReturn ="" //indent to be inside the entity
-    properties.foreach(p => toReturn = s"$toReturn      ${p._2.toString} \n")
+    properties.toSeq.sortBy(_._1).foreach(p => toReturn = s"$toReturn      ${p._2.toString} \n")
     toReturn
   }
   //************* END PRINT ENTITY DETAILS BLOCK *********************\\
