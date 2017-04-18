@@ -26,8 +26,8 @@ class Entity(creationMessage:Int, initialValue:Boolean) {
 
   //************* KILL ENTITY BLOCK *********************\\
   def kill(msgID:Int):Unit={
-    if(previousState==Nil) previousState = (msgID,false)::previousState // if the vertex has been wiped then no need to do anything
-    if(msgID > previousState.head._1) previousState = (msgID,false) :: previousState //if the kill is the latest command put at the front
+    if(previousState isEmpty) previousState = (msgID,false)::Nil // if the vertex has been wiped then no need to do anything
+    else if(msgID > previousState.head._1) previousState = (msgID,false) :: previousState //if the kill is the latest command put at the front
     else previousState = previousState.head :: conspireToCommitMurder(msgID,previousState.tail) //otherwise we need to find where it goes by looking through the list
     properties.foreach(p => p._2.kill(msgID)) //send the message to all properties
     updateRemoveList()

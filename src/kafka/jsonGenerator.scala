@@ -26,7 +26,7 @@ object jsonGenerator extends App{
   if(!new java.io.File("CurrentMessageNumber.txt").exists) storeRunNumber(0) //check if there is previous run which has created messages, fi not create file
   else for (line <- Source.fromFile("CurrentMessageNumber.txt").getLines()) {currentMessage = line.toInt} //otherwise read previous number
 
-  genRandomCommands(10000)
+  genRandomCommands(1000)
 
   producer.close
   storeRunNumber(currentMessage) //once the run is over, store the current value so this may be used in the next iteration
@@ -36,7 +36,7 @@ object jsonGenerator extends App{
       val random = Random.nextFloat()
            if(random<=0.2) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexAdd()))
       else if(random<=0.4) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexUpdateProperties()))
-      //else if(random<=0.5) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexRemoval()))
+      else if(random<=0.5) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genVertexRemoval()))
       else if(random<=0.7) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeAdd()))
       else if(random<=0.8) producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeUpdateProperties()))
       else                 producer.send(new KeyedMessage[String,String]("jsonMessages","127.0.0.1",genEdgeRemoval()))
@@ -109,8 +109,8 @@ object jsonGenerator extends App{
 
   def genSetSrcID():String = s""" "srcID":9 """
   def genSetDstID():String = s""" "dstID":10 """
-  def genSrcID():String = s""" "srcID":${Random.nextInt(100)} """
-  def genDstID():String = s""" "dstID":${Random.nextInt(100)} """
+  def genSrcID():String = s""" "srcID":${Random.nextInt(30)} """
+  def genDstID():String = s""" "dstID":${Random.nextInt(30)} """
   def genSrcID(src:Int):String = s""" "srcID":$src """
   def genDstID(dst:Int):String = s""" "dstID":$dst """
 
@@ -119,7 +119,7 @@ object jsonGenerator extends App{
   def genProperties(numOfProps:Int,randomProps:Boolean):String ={
     var properties = "\"properties\":{"
     for(i <- 1 to numOfProps){
-      val propnum = {if(randomProps) Random.nextInt(50) else i}
+      val propnum = {if(randomProps) Random.nextInt(30) else i}
       if(i<numOfProps) properties = properties + s""" "property$propnum":${Random.nextInt()}, """
       else properties = properties + s""" "property$propnum":${Random.nextInt()} }"""
     }

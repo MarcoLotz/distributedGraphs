@@ -33,7 +33,7 @@ object CommandOrderTest extends App{
        count+=1
      }
     })
-    if(count!=remoteCount)println("Remote count off!") else println("correct remote count")
+    if(count!=remoteCount)println(s"Remote count off! $count $remoteCount") else println("correct remote count")
   }
 
   def file2file(sFile:List[String],tFile:List[String]):Unit={

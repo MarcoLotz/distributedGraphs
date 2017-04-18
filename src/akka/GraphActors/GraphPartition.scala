@@ -9,8 +9,7 @@ import java.io._
   * Will process these, storing information in graph entities which may be updated if they already exist
   * */
 
-//sort random message 1 everywhere
-//sort sending remove edge commands to associated edges if they may not exist at that point
+//need to work out why the return death is happening multiple times
 
 class GraphPartition(id:Int,test:Boolean) extends Actor {
   val childID = id  //ID which refers to the partitions position in the graph manager map
@@ -19,7 +18,7 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
   var partitionList = Map[Int,ActorRef]()
   val logging = true
   val testPartition = test
-
+ var count = 0
   override def receive: Receive = {
 
     case PassPartitionList(pl) => partitionList = pl
@@ -29,17 +28,22 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
     case VertexUpdateProperties(msgId,srcId,properties) => vertexUpdateProperties(msgId,srcId,properties); log(srcId)
     case VertexRemoval(msgId,srcId) => vertexRemoval(msgId,srcId); log(srcId)
 
-    case EdgeAdd(msgId,srcId,dstId) => edgeAdd(msgId,srcId,dstId); log(srcId,dstId); log(srcId); log(dstId)
-    case RemoteEdgeAdd(msgId,srcId,dstId) => remoteEdgeAdd(msgId,srcId,dstId); rlog(srcId,dstId); log(srcId); log(dstId)
+    case EdgeAdd(msgId,srcId,dstId) => edgeAdd(msgId,srcId,dstId); log(msgId,srcId,dstId); log(srcId); log(dstId)
+    case RemoteEdgeAdd(msgId,srcId,dstId) => remoteEdgeAdd(msgId,srcId,dstId); log(msgId,srcId,dstId); log(srcId); log(dstId)
+    case RemoteEdgeAddNew(msgId,srcId,dstId,deaths) =>  remoteEdgeAddNew(msgId,srcId,dstId,deaths); log(msgId,srcId,dstId); log(srcId); log(dstId)
 
-    case EdgeAddWithProperties(msgId,srcId,dstId,properties) => edgeAddWithProperties(msgId,srcId,dstId,properties); log(srcId,dstId); log(srcId); log(dstId)
-    case RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) => remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); rlog(srcId,dstId); log(srcId); log(dstId)
+    case EdgeAddWithProperties(msgId,srcId,dstId,properties) => edgeAddWithProperties(msgId,srcId,dstId,properties); log(msgId,srcId,dstId); log(srcId); log(dstId)
+    case RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) => remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); log(msgId,srcId,dstId); log(srcId); log(dstId)
+    case RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths) => remoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths); log(msgId,srcId,dstId); log(srcId); log(dstId)
 
-    case EdgeUpdateProperties(msgId,srcId,dstId,properties) => edgeUpdateWithProperties(msgId,srcId,dstId,properties); log(srcId,dstId); log(srcId); log(dstId)
-    case RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) => remoteEdgeUpdateWithProperties(msgId,srcId,dstId,properties); rlog(srcId,dstId); log(srcId); log(dstId)
+    case EdgeUpdateProperties(msgId,srcId,dstId,properties) => edgeAddWithProperties(msgId,srcId,dstId,properties); log(msgId,srcId,dstId); log(srcId); log(dstId)
+    case RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) => remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); log(msgId,srcId,dstId); log(srcId); log(dstId)
 
-    case EdgeRemoval(msgId,srcId,dstId) => edgeRemoval(msgId,srcId,dstId); log(srcId,dstId); log(srcId); log(dstId)
-    case RemoteEdgeRemoval(msgId,srcId,dstId) => remoteEdgeRemoval(msgId,srcId,dstId); rlog(srcId,dstId); log(srcId); log(dstId)
+    case EdgeRemoval(msgId,srcId,dstId) => edgeRemoval(msgId,srcId,dstId); log(msgId,srcId,dstId); log(srcId); log(dstId)
+    case RemoteEdgeRemoval(msgId,srcId,dstId) => remoteEdgeRemoval(msgId,srcId,dstId); log(msgId,srcId,dstId); log(srcId); log(dstId)
+    case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) => remoteEdgeRemovalNew(msgId,srcId,dstId,deaths); log(msgId,srcId,dstId); log(srcId); log(dstId)
+
+    case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => remoteReturnDeaths(msgId,srcId,dstId,deaths); log(msgId,srcId,dstId); log(srcId); log(dstId)
 
   }
 
@@ -52,68 +56,111 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
     properties.foreach(l => vertices(srcId) + (msgId,l._1,l._2)) //add all properties
   }
 
-
-
   def edgeAdd(msgId:Int,srcId:Int,dstId:Int):Unit={
     if(checkDst(dstId)) { //local edge
-      if(edges contains (srcId,dstId)) edges(srcId,dstId) revive msgId //if the edge already exists revive
-      else edges = edges updated((srcId,dstId),new Edge(msgId,true,srcId,dstId)) //if the edge is yet to exist
       vertexAdd(msgId,srcId) //create or revive the source ID
       vertexAdd(msgId,dstId) //do the same for the destination ID
       vertices(srcId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the source node
       vertices(dstId) addAssociatedEdge (srcId,dstId) //do the same for the destination node
+
+      if(edges contains (srcId,dstId)) edges(srcId,dstId) revive msgId //if the edge already exists revive
+      else {
+        edges = edges updated((srcId,dstId),new Edge(msgId,true,srcId,dstId))
+        edges(srcId,dstId) killList vertices(srcId).removeList.map(kill => kill._1) //get the remove list from source node and give to the Edge
+        edges(srcId,dstId) killList vertices(dstId).removeList.map(kill => kill._1) //get the remove list from destination node and give to the Edge
+      } //if the edge is yet to exist
     }
     else{ //remote edge
-      if(edges contains (srcId,dstId)) edges(srcId,dstId) revive msgId //if the edge already exists revive
-      else edges = edges updated((srcId,dstId),new RemoteEdge(msgId,true,srcId,dstId,RemotePos.Destination,getPartition(dstId)))
       vertexAdd(msgId,srcId) //create or revive the source ID
       vertices(srcId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the source node
-      partitionList(getPartition(dstId)) ! RemoteEdgeAdd(msgId,srcId,dstId) // inform the partition dealing with the destination node
+
+      if(edges contains (srcId,dstId)) { //if the edge already exists
+        edges(srcId,dstId) revive msgId // revive
+        partitionList(getPartition(dstId)) ! RemoteEdgeAdd(msgId,srcId,dstId) // inform the partition dealing with the destination node
+      }
+      else {
+        edges = edges updated((srcId,dstId),new RemoteEdge(msgId,true,srcId,dstId,RemotePos.Destination,getPartition(dstId))) //create the re
+        val deaths = vertices(srcId).removeList.map(kill => kill._1)
+        edges(srcId,dstId) killList deaths
+        partitionList(getPartition(dstId)) ! RemoteEdgeAddNew(msgId,srcId,dstId,deaths) // inform the partition dealing with the destination node
+      }
     }
   }
+
   def remoteEdgeAdd(msgId:Int,srcId:Int,dstId:Int):Unit={
-    if(edges contains (srcId,dstId)) edges((srcId,dstId)) revive msgId //if edge exists add the revive to list
-    else edges = edges updated((srcId,dstId),new RemoteEdge(msgId,true,srcId,dstId,RemotePos.Source,getPartition(srcId))) //else create it
     vertexAdd(msgId,dstId) //create or revive the destination node
-    vertices(dstId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the destination node
+    vertices(dstId) addAssociatedEdge (srcId,dstId) //don't think this is needed, may be able to remove
+    edges((srcId,dstId)) revive msgId //revive the edge
   }
 
+  def remoteEdgeAddNew(msgId:Int,srcId:Int,dstId:Int,srcDeaths:List[Int]):Unit={
+    vertexAdd(msgId,dstId) //create or revive the destination node
+    vertices(dstId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the destination node
+
+    edges = edges updated((srcId,dstId),new RemoteEdge(msgId,true,srcId,dstId,RemotePos.Source,getPartition(srcId))) //create the new edge
+    val deaths = vertices(dstId).removeList.map(kill => kill._1) //get the destination node deaths
+    edges(srcId,dstId) killList srcDeaths //pass source node death lists to the edge
+    edges(srcId,dstId) killList deaths  // pass destination node death lists to the edge
+    partitionList(getPartition(srcId)) ! RemoteReturnDeaths(msgId,srcId,dstId,deaths)
+  }
 
 
   def edgeAddWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
     if(checkDst(dstId)) { //local edge
-      if(edges contains (srcId,dstId)) edges(srcId,dstId) revive msgId //if the edge already exists revive
-      else edges = edges updated((srcId,dstId),new Edge(msgId,true,srcId,dstId)) //if the edge is yet to exist
       vertexAdd(msgId,srcId) //create or revive the source ID
       vertexAdd(msgId,dstId) //do the same for the destination ID
       vertices(srcId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the source node
       vertices(dstId) addAssociatedEdge (srcId,dstId) //do the same for the destination node
+
+      if(edges contains (srcId,dstId)) edges(srcId,dstId) revive msgId //if the edge already exists revive
+      else {
+        edges = edges updated((srcId,dstId),new Edge(msgId,true,srcId,dstId))
+        edges(srcId,dstId) killList vertices(srcId).removeList.map(kill => kill._1) //get the remove list from source node and give to the Edge
+        edges(srcId,dstId) killList vertices(dstId).removeList.map(kill => kill._1) //get the remove list from destination node and give to the Edge
+      } //if the edge is yet to exist
       properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the edge
     }
+
     else{ //remote edge
-      if(edges contains (srcId,dstId)) edges(srcId,dstId) revive msgId //if the edge already exists revive
-      else edges = edges updated((srcId,dstId),new RemoteEdge(msgId,true,srcId,dstId,RemotePos.Destination,getPartition(dstId)))
       vertexAdd(msgId,srcId) //create or revive the source ID
       vertices(srcId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the source node
-      properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the edge
-      partitionList(getPartition(dstId)) ! RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties)
+
+      if(edges contains (srcId,dstId)) { //if the edge already exists
+        edges(srcId,dstId) revive msgId // revive
+        properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the edge
+        partitionList(getPartition(dstId)) ! RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) // inform the partition dealing with the destination node
+      }
+      else {
+        edges = edges updated((srcId,dstId),new RemoteEdge(msgId,true,srcId,dstId,RemotePos.Destination,getPartition(dstId))) //create the remote edge
+        val deaths = vertices(srcId).removeList.map(kill => kill._1) //get the source node deaths
+        edges(srcId,dstId) killList deaths //pass to teh edge
+        properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the edge
+        partitionList(getPartition(dstId)) ! RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths) // inform the partition dealing with the destination node
+      }
     }
   }
   def remoteEdgeAddWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit={
-    if(edges contains (srcId,dstId)) edges((srcId,dstId)) revive msgId //if edge exists add the revive to list
-    else edges = edges updated((srcId,dstId),new RemoteEdge(msgId,true,srcId,dstId,RemotePos.Source,getPartition(srcId))) //else create it
     vertexAdd(msgId,dstId) //create or revive the destination node
-    vertices(dstId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the destination node
+    vertices(dstId) addAssociatedEdge (srcId,dstId) //again I think this can be removed
+    edges((srcId,dstId)) revive msgId //revive  the edge
     properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the list
   }
 
+  def remoteEdgeAddWithPropertiesNew(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String],srcDeaths:List[Int]):Unit={
+    vertexAdd(msgId,dstId) //create or revive the destination node
+    vertices(dstId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the destination node
+
+    edges = edges updated((srcId,dstId),new RemoteEdge(msgId,true,srcId,dstId,RemotePos.Source,getPartition(srcId))) //create the new edge
+    val deaths = vertices(dstId).removeList.map(kill => kill._1) //get the destination node deaths
+    edges(srcId,dstId) killList srcDeaths //pass source node death lists to the edge
+    edges(srcId,dstId) killList deaths  // pass destination node death lists to the edge
+    properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the list
+    partitionList(getPartition(srcId)) ! RemoteReturnDeaths(msgId,srcId,dstId,deaths)
+  }
 
 
   def edgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
     if(checkDst(dstId)) { //local edge
-      if(edges contains (srcId,dstId)) edges((srcId,dstId)) kill msgId // if the edge already exists, kill it
-      else edges = edges updated((srcId,dstId),new Edge(msgId,false,srcId,dstId)) // otherwise create and initialise as false
-
       if(!(vertices contains srcId)){ //if src vertex does not exist, create it and wipe the history so that it may contain the associated Edge list
         vertices = vertices updated(srcId,new Vertex(msgId,srcId,true))
         vertices(srcId) wipe()
@@ -124,56 +171,88 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
       }
       vertices(srcId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the source node
       vertices(dstId) addAssociatedEdge (srcId,dstId) //do the same for the destination node
-    }
-    else {   // remote edge
-      if(edges contains (srcId,dstId)) edges((srcId,dstId)) kill msgId // if the edge already exists, kill it
-      else edges = edges updated((srcId,dstId),new RemoteEdge(msgId,false,srcId,dstId,RemotePos.Destination,getPartition(dstId))) // otherwise create and initialise as false
 
+      if(edges contains (srcId,dstId)) edges((srcId,dstId)) kill msgId // if the edge already exists, kill it
+      else {
+        edges = edges updated((srcId, dstId), new Edge(msgId, false, srcId, dstId)) // otherwise create and initialise as false
+        edges(srcId, dstId) killList vertices(srcId).removeList.map(kill => kill._1) //get the remove list from source node and give to the Edge
+        edges(srcId, dstId) killList vertices(dstId).removeList.map(kill => kill._1) //get the remove list from destination node and give to the Edge
+      }
+    }
+    else { // remote edge
       if(!(vertices contains srcId)){ //if src vertex does not exist, create it and wipe the history so that it may contain the associated Edge list
         vertices = vertices updated(srcId,new Vertex(msgId,srcId,true))
         vertices(srcId) wipe()
       }
       vertices(srcId) addAssociatedEdge (srcId,dstId) //add the edge to the associated edges of the source node
-      partitionList(getPartition(dstId)) ! RemoteEdgeRemoval(msgId,srcId,dstId) //inform the remote partition of the remove
+
+      if(edges contains (srcId,dstId)) { //if the edge already exists
+        edges((srcId,dstId)) kill msgId // kill it
+        partitionList(getPartition(dstId)) ! RemoteEdgeRemoval(msgId,srcId,dstId) // inform the partition dealing with the destination node
+      }
+      else {
+        edges = edges updated((srcId,dstId),new RemoteEdge(msgId,false,srcId,dstId,RemotePos.Destination,getPartition(dstId))) // otherwise create and initialise as false
+        val deaths = vertices(srcId).removeList.map(kill => kill._1) //get the source node deaths
+        edges(srcId,dstId) killList deaths //pass to the edge
+        partitionList(getPartition(dstId)) ! RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) // inform the partition dealing with the destination node
+      }
     }
   }
   def remoteEdgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
-    if(edges contains (srcId,dstId)) edges((srcId,dstId)) kill msgId // if the edge already exists, kill it
-    else edges = edges updated((srcId,dstId),new Edge(msgId,false,srcId,dstId)) // otherwise create and initialise as false
-
     if(!(vertices contains dstId)){ //check if the destination node exists, if it does not create it and wipe the history
       vertices = vertices updated(dstId,new Vertex(msgId,dstId,true))
       vertices(dstId) wipe()
     }
     vertices(dstId) addAssociatedEdge (srcId,dstId) //add the edge to the destination nodes associated list
 
+    edges((srcId,dstId)) kill msgId // if the edge already exists, kill it
   }
 
+  def remoteEdgeRemovalNew(msgId:Int,srcId:Int,dstId:Int,srcDeaths:List[Int]):Unit={
+    if(!(vertices contains dstId)){ //check if the destination node exists, if it does not create it and wipe the history
+      vertices = vertices updated(dstId,new Vertex(msgId,dstId,true))
+      vertices(dstId) wipe()
+    }
+    vertices(dstId) addAssociatedEdge (srcId,dstId) //add the edge to the destination nodes associated list
 
+    edges = edges updated((srcId,dstId),new RemoteEdge(msgId,false,srcId,dstId,RemotePos.Source,getPartition(srcId))) // otherwise create and initialise as false
+    val deaths = vertices(dstId).removeList.map(kill => kill._1) //get the destination node deaths
+    edges(srcId,dstId) killList srcDeaths //pass source node death lists to the edge
+    edges(srcId,dstId) killList deaths  // pass destination node death lists to the edge
 
-
-
-
+    partitionList(getPartition(srcId)) ! RemoteReturnDeaths(msgId,srcId,dstId,deaths)
+  }
 
   def vertexRemoval(msgId:Int,srcId:Int):Unit={
-    //if(!(vertices contains srcId)) vertices = vertices updated(srcId,new Vertex(msgId,srcId,false)) //if remove arrives before add create and add remove info
-    //else vertices(srcId) kill msgId //otherwise if it does already exist kill off
-    //vertices(srcId).associatedEdges.foreach(pair=> {
-    //  if(edges contains (pair._1,pair._2)) {
-    //    edges((pair._1, pair._2)) kill msgId
-    //    if(edges((pair._1, pair._2)).isInstanceOf[RemoteEdge]) informRemoteRemove(msgId,pair._1, pair._2)
-     // }
-    //}) //kill all edges
+    if(msgId==21057) println(s"here ${vertices(srcId).printHistory()}")
+    if(vertices contains srcId) {
+      vertices(srcId) kill msgId
+      if(msgId==21057) println(s"here2 ${vertices(srcId).printHistory()}")
+    } //if the vertex already exists then kill it
+    else {
+      vertices = vertices updated(srcId,new Vertex(msgId,srcId,false))
+      if(msgId==21057) println(s"here3 ${vertices(srcId).printHistory()}")
+    } //create a new vertex, but initialise as false
+    vertices(srcId).associatedEdges.foreach(eKey  =>{
+      edges(eKey) kill msgId //kill the edge
+      if(edges(eKey).isInstanceOf[RemoteEdge]){
+        partitionList(edges(eKey).asInstanceOf[RemoteEdge].remotePartitionID) ! RemoteEdgeRemoval(msgId,eKey._1,eKey._2)
+      } // if edge is remote, get the remote partitionID and inform the other partition
+      log(msgId,eKey._1,eKey._2)
+    })
   }
 
+  def remoteReturnDeaths(msgId:Int,srcId:Int,dstId:Int,dstDeaths:List[Int]):Unit= {
+    //println(s"Remote return for $srcId --> $dstId with $msgId")
+    edges(srcId,dstId) killList dstDeaths
+
+  }
 
 
   //***************** EDGE HELPERS
   def checkDst(dstID:Int):Boolean = if(dstID%partitionList.size==childID) true else false //check if destination is also local
   def getPartition(ID:Int):Int = ID%partitionList.size //get the partition a vertex is stored in
-  def addVertex(msgId:Int,id:Int,initialValue:Boolean):Vertex ={ vertices = vertices updated(id,new Vertex(msgId,id,initialValue)); vertices(id)}
 
-  //*******************END EDGE BLOCK
 
   //*******************PRINT BLOCK
   def printToFile(entityName:String,msg: String):Unit={
@@ -182,13 +261,21 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
     finally fw.close()
   }
 
-  def log(srcId:Int):Unit =           if(logging && (vertices contains srcId)) printToFile(s"Vertex$srcId",vertices(srcId).printHistory())
-  def log(srcId:Int,dstId:Int):Unit = if(logging && (edges contains (srcId,dstId))) printToFile(s"Edge$srcId-->$dstId",edges(srcId,dstId).printHistory())
-  def rlog(srcId:Int,dstId:Int):Unit= if(logging && (edges contains (srcId,dstId))) printToFile(s"RemoteEdge$srcId-->$dstId",edges(srcId,dstId).printHistory())
-  //*******************END PRINT BLOCK
+  def log(srcId:Int):Unit = if(logging && (vertices contains srcId)) printToFile(s"Vertex$srcId",vertices(srcId).printHistory())
 
+  def log(msgId:Int,srcId:Int,dstId:Int):Unit={
+    if(logging && (edges contains (srcId,dstId))) {
+      if(edges(srcId,dstId).isInstanceOf[RemoteEdge]) {
+        if(edges(srcId,dstId).asInstanceOf[RemoteEdge].remotePos == RemotePos.Source) printToFile(s"RemoteEdge$srcId-->$dstId",s"${edges(srcId,dstId).printHistory()}")
+        else printToFile(s"Edge$srcId-->$dstId",s"${edges(srcId,dstId).printHistory()}")
+      }
+      else printToFile(s"Edge$srcId-->$dstId",s"${edges(srcId,dstId).printHistory()}")
+    }
+  }
+  //*******************END PRINT BLOCK
 
   def edgeUpdateWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit= edgeAddWithProperties(msgId,srcId,dstId,properties)
   def vertexUpdateProperties(msgId:Int,srcId:Int,properties:Map[String,String]):Unit = vertexAddWithProperties(msgId,srcId,properties)
   def remoteEdgeUpdateWithProperties(msgId:Int,srcId:Int,dstId:Int,properties:Map[String,String]):Unit= remoteEdgeAddWithProperties(msgId,srcId,dstId,properties)
+
 }
