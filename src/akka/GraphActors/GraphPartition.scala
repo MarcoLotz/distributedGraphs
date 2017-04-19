@@ -36,15 +36,15 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
     case RemoteEdgeAddWithProperties(msgId,srcId,dstId,properties) => remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); log(msgId,srcId,dstId); log(srcId); log(dstId)
     case RemoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths) => remoteEdgeAddWithPropertiesNew(msgId,srcId,dstId,properties,deaths); log(msgId,srcId,dstId); log(srcId); log(dstId)
 
-    case EdgeUpdateProperties(msgId,srcId,dstId,properties) => edgeAddWithProperties(msgId,srcId,dstId,properties); log(msgId,srcId,dstId); log(srcId); log(dstId)
-    case RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) => remoteEdgeAddWithProperties(msgId,srcId,dstId,properties); log(msgId,srcId,dstId); log(srcId); log(dstId)
+    case EdgeUpdateProperties(msgId,srcId,dstId,properties) => edgeUpdateWithProperties(msgId,srcId,dstId,properties); log(msgId,srcId,dstId); log(srcId); log(dstId)
+    case RemoteEdgeUpdateProperties(msgId,srcId,dstId,properties) => remoteEdgeUpdateWithProperties(msgId,srcId,dstId,properties); log(msgId,srcId,dstId); log(srcId); log(dstId)
 
     case EdgeRemoval(msgId,srcId,dstId) => edgeRemoval(msgId,srcId,dstId); log(msgId,srcId,dstId); log(srcId); log(dstId)
     case RemoteEdgeRemoval(msgId,srcId,dstId) => remoteEdgeRemoval(msgId,srcId,dstId); log(msgId,srcId,dstId); log(srcId); log(dstId)
     case RemoteEdgeRemovalNew(msgId,srcId,dstId,deaths) => remoteEdgeRemovalNew(msgId,srcId,dstId,deaths); log(msgId,srcId,dstId); log(srcId); log(dstId)
 
     case RemoteReturnDeaths(msgId,srcId,dstId,deaths) => remoteReturnDeaths(msgId,srcId,dstId,deaths); log(msgId,srcId,dstId); log(srcId); log(dstId)
-
+    case ReturnEdgeRemoval(msgId,srcId,dstId) => returnEdgeRemoval(msgId,srcId,dstId); log(msgId,srcId,dstId); log(srcId); log(dstId)
   }
 
   def vertexAdd(msgId:Int,srcId:Int): Unit ={ //Vertex add handler function
@@ -176,7 +176,7 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
       else {
         edges = edges updated((srcId, dstId), new Edge(msgId, false, srcId, dstId)) // otherwise create and initialise as false
         edges(srcId, dstId) killList vertices(srcId).removeList.map(kill => kill._1) //get the remove list from source node and give to the Edge
-        edges(srcId, dstId) killList vertices(dstId).removeList.map(kill => kill._1) //get the remove list from destination node and give to the Edge
+        if(srcId!=dstId)edges(srcId, dstId) killList vertices(dstId).removeList.map(kill => kill._1) //get the remove list from destination node and give to the Edge (if it isn't a loop edge)
       }
     }
     else { // remote edge
@@ -224,28 +224,37 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
   }
 
   def vertexRemoval(msgId:Int,srcId:Int):Unit={
-    if(msgId==21057) println(s"here ${vertices(srcId).printHistory()}")
     if(vertices contains srcId) {
       vertices(srcId) kill msgId
-      if(msgId==21057) println(s"here2 ${vertices(srcId).printHistory()}")
     } //if the vertex already exists then kill it
     else {
       vertices = vertices updated(srcId,new Vertex(msgId,srcId,false))
-      if(msgId==21057) println(s"here3 ${vertices(srcId).printHistory()}")
     } //create a new vertex, but initialise as false
     vertices(srcId).associatedEdges.foreach(eKey  =>{
       edges(eKey) kill msgId //kill the edge
       if(edges(eKey).isInstanceOf[RemoteEdge]){
-        partitionList(edges(eKey).asInstanceOf[RemoteEdge].remotePartitionID) ! RemoteEdgeRemoval(msgId,eKey._1,eKey._2)
-      } // if edge is remote, get the remote partitionID and inform the other partition
+        if(edges(eKey).asInstanceOf[RemoteEdge].remotePos==RemotePos.Destination) {
+          partitionList(edges(eKey).asInstanceOf[RemoteEdge].remotePartitionID) ! RemoteEdgeRemoval(msgId, eKey._1, eKey._2)
+        } //if this is the source node
+        else{
+          partitionList(edges(eKey).asInstanceOf[RemoteEdge].remotePartitionID) ! ReturnEdgeRemoval(msgId, eKey._1, eKey._2)
+        }//if this is the dest node
+      }
       log(msgId,eKey._1,eKey._2)
     })
   }
 
-  def remoteReturnDeaths(msgId:Int,srcId:Int,dstId:Int,dstDeaths:List[Int]):Unit= {
-    //println(s"Remote return for $srcId --> $dstId with $msgId")
-    edges(srcId,dstId) killList dstDeaths
+  def returnEdgeRemoval(msgId:Int,srcId:Int,dstId:Int):Unit={
+    if(!(vertices contains srcId)){ //check if the destination node exists, if it does not create it and wipe the history
+      vertices = vertices updated(srcId,new Vertex(msgId,srcId,true))
+      vertices(srcId) wipe()
+    }
+    vertices(srcId) addAssociatedEdge (srcId,dstId) //add the edge to the destination nodes associated list
+    edges((srcId,dstId)) kill msgId // if the edge already exists, kill it
+  }
 
+  def remoteReturnDeaths(msgId:Int,srcId:Int,dstId:Int,dstDeaths:List[Int]):Unit= {
+    edges(srcId,dstId) killList dstDeaths
   }
 
 

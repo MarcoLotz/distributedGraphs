@@ -38,8 +38,9 @@ case class RemoteEdgeUpdatePropertiesNew(msgId:Int,srcId:Int,dstId:Int,propertie
 case class RemoteEdgeAddNew(msgId:Int,srcId:Int,dstId:Int,kills:List[Int])
 case class RemoteEdgeAddWithPropertiesNew(msgId:Int,srcId:Int,dstId:Int,properties: Map[String,String],kills:List[Int])
 case class RemoteEdgeRemovalNew(msgId:Int,srcId:Int,dstId:Int,kills:List[Int])
-case class RemoteReturnDeaths(msgId:Int,srcId:Int,dstId:Int,kills:List[Int])
 
+case class RemoteReturnDeaths(msgId:Int,srcId:Int,dstId:Int,kills:List[Int])
+case class ReturnEdgeRemoval(msgId:Int,srcId:Int,dstId:Int)
 
 class GraphManager() extends Actor{
   var childMap = Map[Int,ActorRef]() // map of graph partitions
