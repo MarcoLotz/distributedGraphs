@@ -67,7 +67,7 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
       else {
         edges = edges updated((srcId,dstId),new Edge(msgId,true,srcId,dstId))
         edges(srcId,dstId) killList vertices(srcId).removeList.map(kill => kill._1) //get the remove list from source node and give to the Edge
-        edges(srcId,dstId) killList vertices(dstId).removeList.map(kill => kill._1) //get the remove list from destination node and give to the Edge
+        if(srcId!=dstId)edges(srcId,dstId) killList vertices(dstId).removeList.map(kill => kill._1) //get the remove list from destination node and give to the Edge
       } //if the edge is yet to exist
     }
     else{ //remote edge
@@ -116,7 +116,7 @@ class GraphPartition(id:Int,test:Boolean) extends Actor {
       else {
         edges = edges updated((srcId,dstId),new Edge(msgId,true,srcId,dstId))
         edges(srcId,dstId) killList vertices(srcId).removeList.map(kill => kill._1) //get the remove list from source node and give to the Edge
-        edges(srcId,dstId) killList vertices(dstId).removeList.map(kill => kill._1) //get the remove list from destination node and give to the Edge
+        if(srcId!=dstId)edges(srcId,dstId) killList vertices(dstId).removeList.map(kill => kill._1) //get the remove list from destination node and give to the Edge
       } //if the edge is yet to exist
       properties.foreach(prop => edges((srcId,dstId)) + (msgId,prop._1,prop._2)) // add all passed properties onto the edge
     }
